@@ -62,7 +62,7 @@ bot.on('message', async (msg) => {
       // Check for disrespectful language directed at King/Queen
       if (text) {
         const lowerText = text.toLowerCase();
-        const disrespectfulWords = ['bitch', 'crybaby'];
+        const disrespectfulWords = ['bitch', 'crybaby', 'asshole'];
         const hasDisrespectfulWord = disrespectfulWords.some(word => lowerText.includes(word));
         
         if (hasDisrespectfulWord) {
