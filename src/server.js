@@ -20,6 +20,40 @@ async function startServer() {
     await sequelize.authenticate();
     console.log('Database connection established.');
     
+    // Ensure database schema is synchronized (creates tables if they don't exist)
+    await sequelize.sync({ force: false });
+    console.log('Database schema synchronized.');
+    
+    // Ensure Days as King columns exist
+    try {
+      const queryInterface = sequelize.getQueryInterface();
+      const tableInfo = await queryInterface.describeTable('users');
+      
+      if (!tableInfo.daysAsKing) {
+        console.log('Adding daysAsKing column...');
+        await queryInterface.addColumn('users', 'daysAsKing', {
+          type: require('sequelize').DataTypes.INTEGER,
+          defaultValue: 0,
+          allowNull: false,
+          comment: 'Number of days user has been King/Queen'
+        });
+        console.log('✅ daysAsKing column added.');
+      }
+      
+      if (!tableInfo.becameKingAt) {
+        console.log('Adding becameKingAt column...');
+        await queryInterface.addColumn('users', 'becameKingAt', {
+          type: require('sequelize').DataTypes.DATE,
+          allowNull: true,
+          comment: 'Date when user became King/Queen'
+        });
+        console.log('✅ becameKingAt column added.');
+      }
+    } catch (error) {
+      // Columns might already exist, or table might not exist yet (will be created by sync)
+      console.log('Days as King columns check:', error.message);
+    }
+    
     console.log('Telegram bot is running and polling for messages...');
     const botInfo = await bot.getMe();
     botUsername = botInfo.username.toLowerCase();

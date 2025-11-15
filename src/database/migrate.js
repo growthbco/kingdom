@@ -85,6 +85,41 @@ async function migrate() {
       console.log(`Loaded ${defaultActions.length} default actions.`);
     }
 
+    // Add Days as King columns if they don't exist
+    console.log('Checking for Days as King columns...');
+    const queryInterface = sequelize.getQueryInterface();
+    try {
+      const tableInfo = await queryInterface.describeTable('users');
+      
+      if (!tableInfo.daysAsKing) {
+        console.log('Adding daysAsKing column to users table...');
+        await queryInterface.addColumn('users', 'daysAsKing', {
+          type: require('sequelize').DataTypes.INTEGER,
+          defaultValue: 0,
+          allowNull: false,
+          comment: 'Number of days user has been King/Queen'
+        });
+        console.log('✅ daysAsKing column added successfully!');
+      } else {
+        console.log('✅ daysAsKing column already exists.');
+      }
+
+      if (!tableInfo.becameKingAt) {
+        console.log('Adding becameKingAt column to users table...');
+        await queryInterface.addColumn('users', 'becameKingAt', {
+          type: require('sequelize').DataTypes.DATE,
+          allowNull: true,
+          comment: 'Date when user became King/Queen'
+        });
+        console.log('✅ becameKingAt column added successfully!');
+      } else {
+        console.log('✅ becameKingAt column already exists.');
+      }
+    } catch (error) {
+      console.error('Error checking/adding Days as King columns:', error);
+      // Don't fail migration if columns already exist or table doesn't exist yet
+    }
+
     console.log('Migration completed successfully!');
     process.exit(0);
   } catch (error) {
