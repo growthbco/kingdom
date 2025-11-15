@@ -59,6 +59,136 @@ bot.on('message', async (msg) => {
       user.lastSeen = new Date();
       await user.save();
       
+      // Check for disrespectful language directed at King/Queen
+      if (text) {
+        const lowerText = text.toLowerCase();
+        const disrespectfulWords = ['bitch', 'crybaby'];
+        const hasDisrespectfulWord = disrespectfulWords.some(word => lowerText.includes(word));
+        
+        if (hasDisrespectfulWord) {
+          // Check if message is directed at King/Queen
+          const User = require('./models/User');
+          const king = await User.findOne({ where: { role: 'king' } });
+          const queen = await User.findOne({ where: { role: 'queen' } });
+          
+          let isDirectedAtRoyalty = false;
+          let targetRoyalty = null;
+          
+          // Check if it's a reply to King/Queen
+          if (msg.reply_to_message && msg.reply_to_message.from) {
+            const replyUserId = msg.reply_to_message.from.id.toString();
+            if (king && king.messengerId === replyUserId) {
+              isDirectedAtRoyalty = true;
+              targetRoyalty = king;
+            } else if (queen && queen.messengerId === replyUserId) {
+              isDirectedAtRoyalty = true;
+              targetRoyalty = queen;
+            }
+          }
+          
+          // Check if King/Queen is mentioned in the message
+          if (!isDirectedAtRoyalty) {
+            if (king && (lowerText.includes(king.name.toLowerCase()) || lowerText.includes('king'))) {
+              isDirectedAtRoyalty = true;
+              targetRoyalty = king;
+            } else if (queen && (lowerText.includes(queen.name.toLowerCase()) || lowerText.includes('queen'))) {
+              isDirectedAtRoyalty = true;
+              targetRoyalty = queen;
+            }
+          }
+          
+          // If directed at royalty, ban the user
+          if (isDirectedAtRoyalty) {
+            const jailService = require('./services/jailService');
+            const { kickChatMember } = require('./bot/telegramBot');
+            
+            const warningMessage = `⚠️ **DISRESPECT DETECTED!**\n\n` +
+              `You have used inappropriate language directed at the ${targetRoyalty.role === 'king' ? 'King' : 'Queen'}.\n\n` +
+              `🔒 You will be removed from this chat in 10 seconds...\n\n` +
+              `No one shall speak to the ${targetRoyalty.role === 'king' ? 'King' : 'Queen'} in that manner!`;
+            
+            // Send warning message
+            await sendMessage(chatId.toString(), warningMessage);
+            
+            // Countdown and kick
+            const countdown = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
+            for (const num of countdown) {
+              await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+              try {
+                await sendMessage(chatId.toString(), `⏰ ${num}...`);
+              } catch (e) {
+                // Ignore errors during countdown
+              }
+            }
+            
+            // Mark user as in prison
+            try {
+              user.isInPrison = true;
+              await user.save();
+              
+              // Log activity
+              await activityService.logActivity('user_banned', {
+                userId: user.id,
+                targetUserId: user.id,
+                details: { reason: `Disrespectful language directed at ${targetRoyalty.role}` },
+                chatId: chatId.toString()
+              });
+            } catch (error) {
+              console.error('Error marking user as in prison:', error);
+            }
+            
+            // Kick the user
+            try {
+              const chatIdStr = chatId.toString();
+              const userIdInt = parseInt(userId);
+              
+              console.log(`Banning user ${userIdInt} from chat ${chatIdStr} for disrespect`);
+              
+              await kickChatMember(chatIdStr, userIdInt);
+              
+              await sendMessage(chatIdStr, `🔒 ${user.name} has been removed for disrespectful language directed at the ${targetRoyalty.role === 'king' ? 'King' : 'Queen'}.`);
+            } catch (kickError) {
+              console.error('Error kicking user:', kickError);
+              
+              let errorMsg = '';
+              if (kickError.message) {
+                if (kickError.message.includes('not enough rights') || kickError.message.includes('chat_admin_required')) {
+                  errorMsg = `⚠️ Bot is not an admin - could not remove ${user.name}. Please remove them manually.`;
+                } else if (kickError.message.includes('user is an administrator')) {
+                  errorMsg = `⚠️ Cannot remove ${user.name} - they are an administrator of this chat.`;
+                } else {
+                  errorMsg = `⚠️ Could not remove ${user.name}: ${kickError.message}`;
+                }
+              } else {
+                errorMsg = `⚠️ Could not remove ${user.name}. Please check bot permissions.`;
+              }
+              
+              await sendMessage(chatId.toString(), errorMsg);
+            }
+            
+            // Notify jail chat if configured
+            try {
+              const jailChatId = await jailService.getJailChatId(chatId.toString());
+              if (jailChatId) {
+                const jailMessage = `🔒 **New Prisoner Arrived (Disrespect)**\n\n` +
+                  `**Name:** ${user.name}\n` +
+                  `**User ID:** ${user.messengerId}\n` +
+                  `**Reason:** Disrespectful language directed at ${targetRoyalty.role === 'king' ? 'King' : 'Queen'} ${targetRoyalty.name}\n` +
+                  `**Chat:** ${msg.chat.title || 'Main Chat'}\n\n` +
+                  `_Please add this user to the jail chat manually._`;
+                
+                await sendMessage(jailChatId, jailMessage);
+              }
+            } catch (error) {
+              console.error('Error sending jail notification:', error);
+            }
+            
+            // Return early - don't process message further
+            return;
+          }
+        }
+      }
+      
       // Track message for activity rewards
       const { activity, isFirstMessage } = await automatedRewardsService.trackMessage(
         user.id,
@@ -126,6 +256,136 @@ bot.on('message', async (msg) => {
     // Update last seen timestamp
     user.lastSeen = new Date();
     await user.save();
+    
+    // Check for disrespectful language directed at King/Queen (also check commands)
+    if (text) {
+      const lowerText = text.toLowerCase();
+      const disrespectfulWords = ['bitch', 'crybaby'];
+      const hasDisrespectfulWord = disrespectfulWords.some(word => lowerText.includes(word));
+      
+      if (hasDisrespectfulWord) {
+        // Check if message is directed at King/Queen
+        const User = require('./models/User');
+        const king = await User.findOne({ where: { role: 'king' } });
+        const queen = await User.findOne({ where: { role: 'queen' } });
+        
+        let isDirectedAtRoyalty = false;
+        let targetRoyalty = null;
+        
+        // Check if it's a reply to King/Queen
+        if (msg.reply_to_message && msg.reply_to_message.from) {
+          const replyUserId = msg.reply_to_message.from.id.toString();
+          if (king && king.messengerId === replyUserId) {
+            isDirectedAtRoyalty = true;
+            targetRoyalty = king;
+          } else if (queen && queen.messengerId === replyUserId) {
+            isDirectedAtRoyalty = true;
+            targetRoyalty = queen;
+          }
+        }
+        
+        // Check if King/Queen is mentioned in the message
+        if (!isDirectedAtRoyalty) {
+          if (king && (lowerText.includes(king.name.toLowerCase()) || lowerText.includes('king'))) {
+            isDirectedAtRoyalty = true;
+            targetRoyalty = king;
+          } else if (queen && (lowerText.includes(queen.name.toLowerCase()) || lowerText.includes('queen'))) {
+            isDirectedAtRoyalty = true;
+            targetRoyalty = queen;
+          }
+        }
+        
+        // If directed at royalty, ban the user
+        if (isDirectedAtRoyalty) {
+          const jailService = require('./services/jailService');
+          const { kickChatMember } = require('./bot/telegramBot');
+          
+          const warningMessage = `⚠️ **DISRESPECT DETECTED!**\n\n` +
+            `You have used inappropriate language directed at the ${targetRoyalty.role === 'king' ? 'King' : 'Queen'}.\n\n` +
+            `🔒 You will be removed from this chat in 10 seconds...\n\n` +
+            `No one shall speak to the ${targetRoyalty.role === 'king' ? 'King' : 'Queen'} in that manner!`;
+          
+          // Send warning message
+          await sendMessage(chatId.toString(), warningMessage);
+          
+          // Countdown and kick
+          const countdown = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
+          for (const num of countdown) {
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+            try {
+              await sendMessage(chatId.toString(), `⏰ ${num}...`);
+            } catch (e) {
+              // Ignore errors during countdown
+            }
+          }
+          
+          // Mark user as in prison
+          try {
+            user.isInPrison = true;
+            await user.save();
+            
+            // Log activity
+            await activityService.logActivity('user_banned', {
+              userId: user.id,
+              targetUserId: user.id,
+              details: { reason: `Disrespectful language directed at ${targetRoyalty.role}` },
+              chatId: chatId.toString()
+            });
+          } catch (error) {
+            console.error('Error marking user as in prison:', error);
+          }
+          
+          // Kick the user
+          try {
+            const chatIdStr = chatId.toString();
+            const userIdInt = parseInt(userId);
+            
+            console.log(`Banning user ${userIdInt} from chat ${chatIdStr} for disrespect`);
+            
+            await kickChatMember(chatIdStr, userIdInt);
+            
+            await sendMessage(chatIdStr, `🔒 ${user.name} has been removed for disrespectful language directed at the ${targetRoyalty.role === 'king' ? 'King' : 'Queen'}.`);
+          } catch (kickError) {
+            console.error('Error kicking user:', kickError);
+            
+            let errorMsg = '';
+            if (kickError.message) {
+              if (kickError.message.includes('not enough rights') || kickError.message.includes('chat_admin_required')) {
+                errorMsg = `⚠️ Bot is not an admin - could not remove ${user.name}. Please remove them manually.`;
+              } else if (kickError.message.includes('user is an administrator')) {
+                errorMsg = `⚠️ Cannot remove ${user.name} - they are an administrator of this chat.`;
+              } else {
+                errorMsg = `⚠️ Could not remove ${user.name}: ${kickError.message}`;
+              }
+            } else {
+              errorMsg = `⚠️ Could not remove ${user.name}. Please check bot permissions.`;
+            }
+            
+            await sendMessage(chatId.toString(), errorMsg);
+          }
+          
+          // Notify jail chat if configured
+          try {
+            const jailChatId = await jailService.getJailChatId(chatId.toString());
+            if (jailChatId) {
+              const jailMessage = `🔒 **New Prisoner Arrived (Disrespect)**\n\n` +
+                `**Name:** ${user.name}\n` +
+                `**User ID:** ${user.messengerId}\n` +
+                `**Reason:** Disrespectful language directed at ${targetRoyalty.role === 'king' ? 'King' : 'Queen'} ${targetRoyalty.name}\n` +
+                `**Chat:** ${msg.chat.title || 'Main Chat'}\n\n` +
+                `_Please add this user to the jail chat manually._`;
+              
+              await sendMessage(jailChatId, jailMessage);
+            }
+          } catch (error) {
+            console.error('Error sending jail notification:', error);
+          }
+          
+          // Return early - don't process command further
+          return;
+        }
+      }
+    }
     
     // Parse message
     const parsed = parseMessage(text);
