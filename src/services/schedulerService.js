@@ -3,6 +3,7 @@ const automatedRewardsService = require('./automatedRewardsService');
 const randomDropService = require('./randomDropService');
 const miniGameService = require('./miniGameService');
 const Group = require('../models/Group');
+const User = require('../models/User');
 
 /**
  * Initialize all scheduled tasks
@@ -17,6 +18,7 @@ function initializeScheduler() {
     try {
       await automatedRewardsService.distributeDailyWelfare();
       await automatedRewardsService.resetDailyCounters();
+      await incrementDaysAsKing();
     } catch (error) {
       console.error('Error in daily welfare cron job:', error);
     }
@@ -54,6 +56,38 @@ function scheduleRandomDrops() {
   });
   
   console.log('Random drops scheduled');
+}
+
+/**
+ * Increment Days as King counter for all current Kings/Queens
+ */
+async function incrementDaysAsKing() {
+  try {
+    console.log('Incrementing Days as King counter...');
+    const kingsAndQueens = await User.findAll({
+      where: {
+        role: {
+          [require('sequelize').Op.in]: ['king', 'queen']
+        }
+      }
+    });
+
+    let updatedCount = 0;
+    for (const monarch of kingsAndQueens) {
+      monarch.daysAsKing = (monarch.daysAsKing || 0) + 1;
+      await monarch.save();
+      updatedCount++;
+      console.log(`✅ ${monarch.name} (${monarch.role}): ${monarch.daysAsKing} days`);
+    }
+
+    if (updatedCount === 0) {
+      console.log('No Kings/Queens found to update.');
+    } else {
+      console.log(`Updated Days as King for ${updatedCount} monarch(s).`);
+    }
+  } catch (error) {
+    console.error('Error incrementing Days as King:', error);
+  }
 }
 
 /**

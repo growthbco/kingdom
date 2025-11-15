@@ -269,6 +269,7 @@ function help() {
     `/roles - All role assignments\n` +
     `/leaderboard - Top ticket holders\n` +
     `/myrole - Your role\n` +
+    `/daysasking - Days as King/Queen counter\n` +
     `/nickname [name] - Set your nickname\n\n` +
     `**📋 Recap:**\n` +
     `/recap [hours] - Activity recap (default: 24h)\n` +
@@ -310,12 +311,56 @@ async function myRole(context) {
   return message;
 }
 
+/**
+ * Show Days as King/Queen status
+ */
+async function daysAsKing(context) {
+  try {
+    const kingsAndQueens = await User.findAll({
+      where: {
+        role: {
+          [require('sequelize').Op.in]: ['king', 'queen']
+        }
+      },
+      order: [['daysAsKing', 'DESC']]
+    });
+
+    if (kingsAndQueens.length === 0) {
+      return `👑 **Days as King/Queen**\n\nNo current Kings or Queens.`;
+    }
+
+    let message = `👑 **Days as King/Queen**\n\n`;
+    
+    for (const monarch of kingsAndQueens) {
+      const roleDisplay = monarch.role === 'king' ? 'King' : 'Queen';
+      const days = monarch.daysAsKing || 0;
+      const becameKingDate = monarch.becameKingAt 
+        ? new Date(monarch.becameKingAt).toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric', 
+            year: 'numeric' 
+          })
+        : 'Unknown';
+      
+      message += `**${monarch.name}** (${roleDisplay})\n`;
+      message += `📅 Days in reign: **${days}**\n`;
+      message += `🕐 Became ${roleDisplay}: ${becameKingDate}\n\n`;
+    }
+
+    return message.trim();
+  } catch (error) {
+    console.error('Error getting Days as King:', error);
+    return `❌ Error: ${error.message}`;
+  }
+}
+
 module.exports = {
   status,
   leaderboard,
   actions,
   help,
   myRole,
-  roles
+  roles,
+  daysAsKing
 };
 

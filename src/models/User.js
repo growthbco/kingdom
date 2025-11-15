@@ -45,6 +45,17 @@ const User = sequelize.define('User', {
     defaultValue: 0,
     allowNull: false,
     comment: 'Number of bombs user has'
+  },
+  daysAsKing: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+    allowNull: false,
+    comment: 'Number of days user has been King/Queen'
+  },
+  becameKingAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: 'Date when user became King/Queen'
   }
 }, {
   tableName: 'users',

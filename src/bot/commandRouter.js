@@ -159,6 +159,10 @@ async function handlePrefixCommand(command, args, context) {
     case 'roles':
       return await infoCommands.roles(context);
     
+    case 'daysasking':
+    case 'reign':
+      return await infoCommands.daysAsKing(context);
+    
     // Recap commands
     case 'recap':
       return await recapCommands.recap(args, context);

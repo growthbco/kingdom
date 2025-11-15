@@ -151,6 +151,21 @@ async function setUserRole(userId, role) {
       throw new Error(`Invalid role: ${role}`);
     }
 
+    const previousRole = user.role;
+    const isBecomingKing = (role === 'king' || role === 'queen') && (previousRole !== 'king' && previousRole !== 'queen');
+    const isLosingKing = (previousRole === 'king' || previousRole === 'queen') && (role !== 'king' && role !== 'queen');
+
+    // If becoming King/Queen, set becameKingAt and reset daysAsKing
+    if (isBecomingKing) {
+      user.becameKingAt = new Date();
+      user.daysAsKing = 0;
+    }
+
+    // If losing King/Queen status, reset becameKingAt (but keep daysAsKing for history)
+    if (isLosingKing) {
+      user.becameKingAt = null;
+    }
+
     user.role = role;
     await user.save();
     return user;
