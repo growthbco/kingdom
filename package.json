@@ -1,0 +1,38 @@
+{
+  "name": "the-kingdom-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot for The Kingdom game",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "migrate": "node src/database/migrate.js",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:stop": "pm2 stop kingdom-bot",
+    "pm2:restart": "pm2 restart kingdom-bot",
+    "pm2:logs": "pm2 logs kingdom-bot",
+    "pm2:status": "pm2 list"
+  },
+  "keywords": [
+    "telegram",
+    "bot",
+    "game",
+    "kingdom"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.69.0",
+    "compromise": "^14.10.0",
+    "dotenv": "^16.3.1",
+    "node-cron": "^4.2.1",
+    "node-telegram-bot-api": "^0.64.0",
+    "openai": "^6.9.0",
+    "sequelize": "^6.35.0",
+    "sqlite3": "^5.1.6"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2",
+    "pm2": "^6.0.13"
+  }
+}
