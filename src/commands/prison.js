@@ -461,7 +461,7 @@ async function removeJailChat(context) {
 async function remove(args, context) {
   const { senderId, user, message } = context;
   
-  // Check if this is a jail chat
+  // FIRST: Check if this is a jail chat - this command ONLY works in jail chat
   const currentChatId = message.chat.id.toString();
   const isJailChatCheck = await jailService.isJailChat(currentChatId);
   
@@ -469,7 +469,7 @@ async function remove(args, context) {
     return "❌ The /remove command can only be used in the jail/prison chat.";
   }
   
-  // Check permissions
+  // SECOND: Check admin permissions - only admins can use this command
   const canAdmin = await roleService.canPerformAdminAction(user.id);
   if (!canAdmin) {
     return "❌ Only Enforcer and King/Queen can remove users from the jail chat.";
