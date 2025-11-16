@@ -96,15 +96,18 @@ async function kickChatMember(chatId, userId, untilDate = null) {
     // If no untilDate specified, immediately unban them (this makes it a kick, not a permanent ban)
     if (untilDate === null) {
       // Wait a moment to ensure the ban takes effect, then unban
-      setTimeout(async () => {
-        try {
-          console.log(`kickChatMember: Unbanning user ${userIdInt} from chat ${chatId}`);
-          await bot.unbanChatMember(chatId, userIdInt);
-          console.log(`kickChatMember: Unban successful`);
-        } catch (e) {
-          console.error('Error unbanning after kick:', e.message);
-        }
-      }, 1000); // Wait 1 second before unbanning
+      // Use Promise-based delay instead of setTimeout for better reliability
+      await new Promise(resolve => setTimeout(resolve, 1500)); // Wait 1.5 seconds
+      
+      try {
+        console.log(`kickChatMember: Unbanning user ${userIdInt} from chat ${chatId}`);
+        await bot.unbanChatMember(chatId, userIdInt);
+        console.log(`kickChatMember: Unban successful`);
+      } catch (e) {
+        console.error('Error unbanning after kick:', e.message);
+        // Don't throw - the ban still worked, unban is just a cleanup
+        // The user is already removed from the chat, which is the main goal
+      }
     }
     
     return result;
