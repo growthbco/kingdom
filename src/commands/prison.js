@@ -281,25 +281,18 @@ async function ban(args, context) {
 
 
 /**
- * Remove user from jail chat (admin only, jail chat only)
+ * Remove user from chat (admin only, works in any chat)
  */
 async function remove(args, context) {
   const { senderId, user, message } = context;
   
-  // FIRST: Check if this is a jail chat - this command ONLY works in jail chat
-  const currentChatId = message.chat.id.toString();
-  const chatTitle = message.chat.title || '';
-  const isJailChatCheck = await jailService.isJailChat(currentChatId, chatTitle);
-  
-  if (!isJailChatCheck) {
-    return "❌ The /remove command can only be used in the jail/prison chat.";
-  }
-  
-  // SECOND: Check admin permissions - only admins can use this command
+  // Check admin permissions - only admins can use this command
   const canAdmin = await roleService.canPerformAdminAction(user.id);
   if (!canAdmin) {
-    return "❌ Only Enforcer and King/Queen can remove users from the jail chat.";
+    return "❌ Only Enforcer and King/Queen can remove users from chats.";
   }
+  
+  const currentChatId = message.chat.id.toString();
   
   let targetUserId = null;
   let targetUsername = null;
@@ -336,15 +329,15 @@ async function remove(args, context) {
     await activityService.logActivity('user_removed_from_jail', {
       userId: user.id,
       targetUserId: targetUser.id,
-      details: { removedFrom: 'jail_chat' },
+      details: { removedFrom: 'chat' },
       chatId: currentChatId
     });
     
-    // Attempt to kick user from jail chat (if bot is admin)
+    // Attempt to kick user from chat (if bot is admin)
     let kickResult = '';
     try {
       await kickChatMember(currentChatId, parseInt(targetUserId));
-      kickResult = '\n✅ User has been removed from the jail chat.';
+      kickResult = '\n✅ User has been removed from this chat.';
     } catch (kickError) {
       // Bot might not be admin, or user might already be banned
       if (kickError.message && kickError.message.includes('not enough rights')) {
@@ -357,10 +350,10 @@ async function remove(args, context) {
         // User might already be banned or other error
         kickResult = '\n⚠️ Could not remove user automatically. Please remove them manually if needed.';
       }
-      console.error('Error kicking user from jail chat:', kickError.message);
+      console.error('Error kicking user from chat:', kickError.message);
     }
     
-    return `🔓 ${targetUser.name} has been removed from the jail chat!${kickResult}`;
+    return `🔓 ${targetUser.name} has been removed from this chat!${kickResult}`;
   } catch (error) {
     return `❌ Error: ${error.message}`;
   }

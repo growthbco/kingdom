@@ -236,7 +236,7 @@ function help() {
     `/awardbomb user <amount> <reason> - Award bombs\n` +
     `/ban user <reason> - Ban to jail (admin only, free)\n` +
     `/jail user <reason> - Send to jail (admin only, costs 5 tickets)\n` +
-    `/remove user - Remove user from jail chat (jail chat only)\n` +
+    `/remove user - Remove user from chat (admin only)\n` +
     `/add user - Add user back to chat\n\n` +
     `**🎫 Tickets:**\n` +
     `/balance - Your balance\n` +
