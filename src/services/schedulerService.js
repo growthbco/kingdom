@@ -11,42 +11,26 @@ const User = require('../models/User');
 function initializeScheduler() {
   console.log('Initializing scheduler service...');
   
-  // DISABLED: Daily welfare at midnight EST (00:00 EST = 05:00 UTC)
-  // Daily welfare disabled to maintain correct balance counts
+  // Daily welfare at midnight EST (00:00 EST = 05:00 UTC)
   // Using cron: "0 5 * * *" for 5 AM UTC = midnight EST
-  // cron.schedule('0 5 * * *', async () => {
-  //   console.log('Running daily welfare distribution...');
-  //   try {
-  //     await automatedRewardsService.distributeDailyWelfare();
-  //     await automatedRewardsService.resetDailyCounters();
-  //     await incrementDaysAsKing();
-  //   } catch (error) {
-  //     console.error('Error in daily welfare cron job:', error);
-  //   }
-  // }, {
-  //   timezone: 'America/New_York'
-  // });
-  
-  // Still increment Days as King counter (this doesn't affect ticket balances)
   cron.schedule('0 5 * * *', async () => {
-    console.log('Running Days as King increment...');
+    console.log('Running daily welfare distribution...');
     try {
+      await automatedRewardsService.distributeDailyWelfare();
+      await automatedRewardsService.resetDailyCounters();
       await incrementDaysAsKing();
     } catch (error) {
-      console.error('Error in Days as King cron job:', error);
+      console.error('Error in daily welfare cron job:', error);
     }
   }, {
     timezone: 'America/New_York'
   });
   
-  console.log('Daily welfare DISABLED - Days as King counter still active');
+  console.log('Daily welfare scheduled for midnight EST');
   
-  // DISABLED: Random drops throughout the day
-  // Random drops disabled to maintain correct balance counts
+  // Random drops throughout the day
   // Schedule random drops at various times (every 3-6 hours)
-  // scheduleRandomDrops();
-  
-  console.log('Random drops DISABLED');
+  scheduleRandomDrops();
   console.log('Scheduler initialized');
 }
 
