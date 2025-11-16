@@ -127,12 +127,38 @@ async function unbanChatMember(chatId, userId) {
   }
 }
 
+/**
+ * Create an invite link for a chat (bot must be admin)
+ */
+async function createChatInviteLink(chatId, options = {}) {
+  try {
+    return await bot.createChatInviteLink(chatId, options);
+  } catch (error) {
+    console.error('Error creating invite link:', error.message);
+    throw error;
+  }
+}
+
+/**
+ * Export chat invite link (if available)
+ */
+async function exportChatInviteLink(chatId) {
+  try {
+    return await bot.exportChatInviteLink(chatId);
+  } catch (error) {
+    console.error('Error exporting invite link:', error.message);
+    return null;
+  }
+}
+
 module.exports = {
   bot,
   sendMessage,
   getChat,
   getChatMember,
   kickChatMember,
-  unbanChatMember
+  unbanChatMember,
+  createChatInviteLink,
+  exportChatInviteLink
 };
 

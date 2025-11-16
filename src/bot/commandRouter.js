@@ -97,6 +97,9 @@ async function handlePrefixCommand(command, args, context) {
     case 'remove':
       return await prisonCommands.remove(args, context);
     
+    case 'add':
+      return await prisonCommands.add(args, context);
+    
     // Ticket commands
     case 'balance':
     case 'tickets':

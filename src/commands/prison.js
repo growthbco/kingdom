@@ -2,7 +2,7 @@ const roleService = require('../services/roleService');
 const activityService = require('../services/activityService');
 const jailService = require('../services/jailService');
 const ticketService = require('../services/ticketService');
-const { bot, sendMessage, kickChatMember, unbanChatMember } = require('../bot/telegramBot');
+const { bot, sendMessage, kickChatMember, unbanChatMember, createChatInviteLink, exportChatInviteLink, getChatMember } = require('../bot/telegramBot');
 const User = require('../models/User');
 const TicketTransaction = require('../models/TicketTransaction');
 
@@ -771,6 +771,108 @@ async function hireLawyer(args, context) {
   }
 }
 
+/**
+ * Add user back to a chat (admin only)
+ * Unbans the user and optionally creates an invite link
+ */
+async function add(args, context) {
+  const { senderId, user, message } = context;
+  
+  // Check permissions - only admins can add users
+  const canAdmin = await roleService.canPerformAdminAction(user.id);
+  if (!canAdmin) {
+    return "❌ Only Enforcer and King/Queen can add users to chats.";
+  }
+  
+  let targetUserId = null;
+  let targetUsername = null;
+  
+  // Check if message is a reply
+  if (message.reply_to_message && message.reply_to_message.from) {
+    targetUserId = message.reply_to_message.from.id.toString();
+    targetUsername = message.reply_to_message.from.username || 
+                     message.reply_to_message.from.first_name ||
+                     `User_${targetUserId}`;
+  } else if (args.length > 0) {
+    const mention = args[0];
+    // Accept both @username and username (without @)
+    const username = mention.startsWith('@') ? mention.substring(1) : mention;
+    // Try to find by name (username or display name)
+    const targetUser = await roleService.getUserByName(username);
+    if (!targetUser) {
+      return `❌ User ${mention.startsWith('@') ? '@' : ''}${username} not found. They need to send a message in the chat first.`;
+    }
+    targetUserId = targetUser.messengerId;
+    targetUsername = targetUser.name;
+  } else {
+    return "❌ Usage: /add @user or /add username or reply to a message";
+  }
+  
+  try {
+    const currentChatId = message.chat.id.toString();
+    const targetUserIdInt = parseInt(targetUserId);
+    
+    // Check if user is already in the chat
+    const chatMember = await getChatMember(currentChatId, targetUserIdInt);
+    if (chatMember && chatMember.status !== 'left' && chatMember.status !== 'kicked') {
+      return `✅ ${targetUsername} is already in this chat.`;
+    }
+    
+    // Try to unban the user (if they're banned, this allows them to rejoin)
+    let unbanResult = '';
+    try {
+      await unbanChatMember(currentChatId, targetUserIdInt);
+      unbanResult = '\n✅ User has been unbanned and can now rejoin.';
+    } catch (unbanError) {
+      // User might not be banned, or bot might not have permission
+      if (unbanError.message && unbanError.message.includes('not enough rights')) {
+        unbanResult = '\n⚠️ Bot is not an admin - cannot unban user.';
+      } else if (unbanError.message && unbanError.message.includes('user not found')) {
+        unbanResult = '\n⚠️ User not found in chat ban list.';
+      } else {
+        // User might not be banned, that's okay
+        unbanResult = '\n⚠️ Could not unban user (they may not be banned).';
+      }
+    }
+    
+    // Try to create an invite link for the user
+    let inviteLink = '';
+    try {
+      const invite = await createChatInviteLink(currentChatId, {
+        name: `Invite for ${targetUsername}`,
+        creates_join_request: false
+      });
+      if (invite && invite.invite_link) {
+        inviteLink = `\n\n🔗 Invite link: ${invite.invite_link}`;
+      }
+    } catch (inviteError) {
+      // Try to get existing invite link
+      try {
+        const existingLink = await exportChatInviteLink(currentChatId);
+        if (existingLink) {
+          inviteLink = `\n\n🔗 Chat invite link: ${existingLink}`;
+        }
+      } catch (exportError) {
+        // No invite link available, that's okay
+        console.log('Could not create or export invite link:', exportError.message);
+      }
+    }
+    
+    // Log activity (using user_pardoned as closest match - can be updated later)
+    await activityService.logActivity('user_pardoned', {
+      userId: user.id,
+      targetUserId: targetUserIdInt,
+      details: { chatId: currentChatId, action: 'added_to_chat' },
+      chatId: currentChatId
+    });
+    
+    return `✅ ${targetUsername} has been added back to this chat!${unbanResult}${inviteLink}`;
+  } catch (error) {
+    console.error('Error adding user to chat:', error);
+    return `❌ Error: ${error.message}`;
+  }
+}
+
 module.exports = {
   ban,
   pardon,
@@ -779,6 +881,7 @@ module.exports = {
   hireLawyer,
   setJailChat,
   removeJailChat,
-  remove
+  remove,
+  add
 };
 
