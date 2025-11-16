@@ -34,12 +34,8 @@ async function ban(args, context) {
       }
     }
     
-    // Mark user as in prison
+    // Log activity
     try {
-      user.isInPrison = true;
-      await user.save();
-      
-      // Log activity
       await activityService.logActivity('user_banned', {
         userId: user.id,
         targetUserId: user.id,
@@ -47,7 +43,7 @@ async function ban(args, context) {
         chatId: message.chat.id.toString()
       });
     } catch (error) {
-      console.error('Error marking user as in prison:', error);
+      console.error('Error logging activity:', error);
     }
     
     // Kick the user
@@ -175,9 +171,14 @@ async function ban(args, context) {
       message.chat.id.toString()
     );
     
-    // Set prison status (allow re-banning even if already in prison)
-    targetUser.isInPrison = true;
-    await targetUser.save();
+    // Check if target is an admin (enforcer, king, queen)
+    const isTargetAdmin = ['enforcer', 'king', 'queen'].includes(targetUser.role);
+    const isBannerKing = user.role === 'king';
+    
+    // Prevent banning admins unless the ban command is from a King
+    if (isTargetAdmin && !isBannerKing) {
+      return `❌ Cannot ban ${targetUser.name} - they are an admin (${targetUser.role}). Only the King can ban other admins.`;
+    }
     
     // Log activity
     await activityService.logActivity('user_banned', {
@@ -187,7 +188,7 @@ async function ban(args, context) {
       chatId: message.chat.id.toString()
     });
     
-    // Attempt to kick user from main chat (if bot is admin)
+    // Always attempt to kick user from chat
     let kickResult = '';
     try {
       await kickChatMember(message.chat.id.toString(), parseInt(targetUserId));
@@ -198,6 +199,8 @@ async function ban(args, context) {
         kickResult = '\n⚠️ Bot is not an admin - user was not removed from chat. Please remove them manually.';
       } else if (kickError.message && kickError.message.includes('chat_admin_required')) {
         kickResult = '\n⚠️ Bot needs admin rights to remove users. Please remove them manually.';
+      } else if (kickError.message && kickError.message.includes('user is an administrator')) {
+        kickResult = '\n⚠️ Cannot remove user - they are a Telegram chat administrator.';
       } else {
         // User might already be banned or other error
         kickResult = '\n⚠️ Could not remove user automatically. Please remove them manually if needed.';
@@ -319,12 +322,7 @@ async function pardon(args, context) {
       message.chat.id.toString()
     );
     
-    if (!targetUser.isInPrison) {
-      return `❌ ${targetUser.name} is not in prison.`;
-    }
-    
-    targetUser.isInPrison = false;
-    await targetUser.save();
+    // Pardon user (no status check needed - just log the pardon)
     
     // Log activity
     await activityService.logActivity('user_pardoned', {
@@ -605,7 +603,15 @@ async function jail(args, context) {
       return "❌ You can't send yourself to jail!";
     }
     
-    // Set prison status (allow re-jailing even if already in prison)
+    // Check if target is an admin (enforcer, king, queen)
+    const isTargetAdmin = ['enforcer', 'king', 'queen'].includes(targetUser.role);
+    const isJailerKing = user.role === 'king';
+    
+    // Prevent jailing admins unless the jail command is from a King
+    if (isTargetAdmin && !isJailerKing) {
+      return `❌ Cannot jail ${targetUser.name} - they are an admin (${targetUser.role}). Only the King can jail other admins.`;
+    }
+    
     // Deduct tickets
     await ticketService.awardTickets(
       user.id,
@@ -613,10 +619,6 @@ async function jail(args, context) {
       user.id,
       `Sent ${targetUser.name} to jail: ${reason}`
     );
-    
-    // Send target to jail
-    targetUser.isInPrison = true;
-    await targetUser.save();
     
     // Log activity
     await activityService.logActivity('user_jailed_tickets', {
@@ -626,7 +628,7 @@ async function jail(args, context) {
       chatId: message.chat.id.toString()
     });
     
-    // Attempt to kick user from main chat (if bot is admin)
+    // Always attempt to kick user from chat
     let kickResult = '';
     try {
       await kickChatMember(message.chat.id.toString(), parseInt(targetUserId));
@@ -636,6 +638,8 @@ async function jail(args, context) {
         kickResult = '\n⚠️ Bot is not an admin - user was not removed from chat. Please remove them manually.';
       } else if (kickError.message && kickError.message.includes('chat_admin_required')) {
         kickResult = '\n⚠️ Bot needs admin rights to remove users. Please remove them manually.';
+      } else if (kickError.message && kickError.message.includes('user is an administrator')) {
+        kickResult = '\n⚠️ Cannot remove user - they are a Telegram chat administrator.';
       } else {
         kickResult = '\n⚠️ Could not remove user automatically. Please remove them manually if needed.';
       }
