@@ -333,7 +333,6 @@ async function daysAsKing(context) {
     
     for (const monarch of kingsAndQueens) {
       const roleDisplay = monarch.role === 'king' ? 'King' : 'Queen';
-      const days = monarch.daysAsKing || 0;
       const becameKingDate = monarch.becameKingAt 
         ? new Date(monarch.becameKingAt).toLocaleDateString('en-US', { 
             month: 'short', 
@@ -342,8 +341,33 @@ async function daysAsKing(context) {
           })
         : 'Unknown';
       
+      // Calculate time in reign (days, hours, minutes)
+      let timeInReign = 'Unknown';
+      if (monarch.becameKingAt) {
+        const now = new Date();
+        const becameKing = new Date(monarch.becameKingAt);
+        const diffMs = now - becameKing;
+        
+        if (diffMs > 0) {
+          const totalMinutes = Math.floor(diffMs / (1000 * 60));
+          const totalHours = Math.floor(totalMinutes / 60);
+          const totalDays = Math.floor(totalHours / 24);
+          
+          const days = totalDays;
+          const hours = totalHours % 24;
+          const minutes = totalMinutes % 60;
+          
+          const parts = [];
+          if (days > 0) parts.push(`${days} day${days !== 1 ? 's' : ''}`);
+          if (hours > 0) parts.push(`${hours} hour${hours !== 1 ? 's' : ''}`);
+          if (minutes > 0) parts.push(`${minutes} minute${minutes !== 1 ? 's' : ''}`);
+          
+          timeInReign = parts.length > 0 ? parts.join(', ') : 'Less than a minute';
+        }
+      }
+      
       message += `**${monarch.name}** (${roleDisplay})\n`;
-      message += `📅 Days in reign: **${days}**\n`;
+      message += `📅 Time in reign: **${timeInReign}**\n`;
       message += `🕐 Became ${roleDisplay}: ${becameKingDate}\n\n`;
     }
 
