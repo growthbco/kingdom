@@ -155,12 +155,8 @@ bot.on('message', async (msg) => {
               }
             }
             
-            // Mark user as in prison
+            // Log activity
             try {
-              user.isInPrison = true;
-              await user.save();
-              
-              // Log activity
               await activityService.logActivity('user_banned', {
                 userId: user.id,
                 targetUserId: user.id,
@@ -168,7 +164,7 @@ bot.on('message', async (msg) => {
                 chatId: chatId.toString()
               });
             } catch (error) {
-              console.error('Error marking user as in prison:', error);
+              console.error('Error logging activity:', error);
             }
             
             // Kick the user
@@ -250,12 +246,8 @@ bot.on('message', async (msg) => {
             }
           }
           
-          // Mark user as in prison
+          // Log activity
           try {
-            user.isInPrison = true;
-            await user.save();
-            
-            // Log activity
             await activityService.logActivity('user_banned', {
               userId: user.id,
               targetUserId: user.id,
@@ -263,7 +255,7 @@ bot.on('message', async (msg) => {
               chatId: chatId.toString()
             });
           } catch (error) {
-            console.error('Error marking user as in prison:', error);
+            console.error('Error logging activity:', error);
           }
           
           // Kick the user
@@ -447,21 +439,17 @@ bot.on('message', async (msg) => {
             }
           }
           
-          // Mark user as in prison
-          try {
-            user.isInPrison = true;
-            await user.save();
-            
             // Log activity
-            await activityService.logActivity('user_banned', {
-              userId: user.id,
-              targetUserId: user.id,
-              details: { reason: `Disrespectful language directed at ${targetRoyalty.role}` },
-              chatId: chatId.toString()
-            });
-          } catch (error) {
-            console.error('Error marking user as in prison:', error);
-          }
+            try {
+              await activityService.logActivity('user_banned', {
+                userId: user.id,
+                targetUserId: user.id,
+                details: { reason: `Disrespectful language directed at ${targetRoyalty.role}` },
+                chatId: chatId.toString()
+              });
+            } catch (error) {
+              console.error('Error logging activity:', error);
+            }
           
           // Kick the user
           try {
