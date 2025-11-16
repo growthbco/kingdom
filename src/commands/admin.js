@@ -1,6 +1,5 @@
 const roleService = require('../services/roleService');
 const User = require('../models/User');
-const RedemptionAction = require('../models/RedemptionAction');
 const activityService = require('../services/activityService');
 const prisonCommands = require('./prison');
 const { kickChatMember, sendMessage } = require('../bot/telegramBot');
@@ -150,56 +149,7 @@ async function setRole(command, args, context) {
   }
 }
 
-/**
- * Add a new redemption action
- */
-async function addAction(args, context) {
-  const { senderId, user, message } = context;
-  
-  // Check permissions
-  const canAdmin = await roleService.canPerformAdminAction(user.id);
-  if (!canAdmin) {
-    return "❌ Only Enforcer and King/Queen can create actions.";
-  }
-  
-  if (args.length < 3) {
-    return "❌ Usage: /addaction <name> <cost> <description>";
-  }
-  
-  const [name, costStr, ...descriptionParts] = args;
-  const cost = parseInt(costStr);
-  const description = descriptionParts.join(' ');
-  
-  if (isNaN(cost) || cost < 1) {
-    return "❌ Cost must be a positive number.";
-  }
-  
-  try {
-    const action = await RedemptionAction.create({
-      actionName: name,
-      ticketCost: cost,
-      description: description || `Costs ${cost} tickets`,
-      isActive: true
-    });
-    
-    // Log activity
-    await activityService.logActivity('action_created', {
-      userId: user.id,
-      details: { actionName: action.actionName, cost: action.ticketCost },
-      chatId: message.chat.id.toString()
-    });
-    
-    return `✅ Action "${action.actionName}" created! Cost: ${action.ticketCost} tickets 🎫`;
-  } catch (error) {
-    if (error.name === 'SequelizeUniqueConstraintError') {
-      return `❌ An action with that name already exists.`;
-    }
-    return `❌ Error: ${error.message}`;
-  }
-}
-
 module.exports = {
-  setRole,
-  addAction
+  setRole
 };
 

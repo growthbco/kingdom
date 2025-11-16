@@ -65,34 +65,12 @@ async function handlePrefixCommand(command, args, context) {
     case 'usebomb':
       return await bombCommands.useBomb(args, context);
     
-    case 'addrule':
-      return await ruleCommands.add(args, context);
-    
-    case 'removerule':
-      return await ruleCommands.remove(args, context);
-    
-    case 'editrule':
-      return await ruleCommands.edit(args, context);
-    
-    case 'addaction':
-      return await adminCommands.addAction(args, context);
-    
     case 'ban':
       return await prisonCommands.ban(args, context);
     
     case 'jail':
     case 'sendtojail':
       return await prisonCommands.jail(args, context);
-    
-    case 'pardon':
-      return await prisonCommands.pardon(args, context);
-    
-    case 'setjailchat':
-      return await prisonCommands.setJailChat(context);
-    
-    case 'removejailchat':
-    case 'unsetjailchat':
-      return await prisonCommands.removeJailChat(context);
     
     case 'remove':
       return await prisonCommands.remove(args, context);
@@ -118,9 +96,6 @@ async function handlePrefixCommand(command, args, context) {
     case 'give':
     case 'gift':
       return await ticketCommands.give(args, context);
-    
-    case 'pay':
-      return await ticketCommands.pay(args, context);
     
     // Assassination commands
     case 'assassinate':

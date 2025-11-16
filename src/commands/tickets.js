@@ -515,97 +515,6 @@ async function give(args, context) {
   }
 }
 
-/**
- * Pay someone for their services (e.g., lawyers, etc.)
- * No daily limit - for professional services
- */
-async function pay(args, context) {
-  const { senderId, user, message } = context;
-  
-  if (args.length < 2) {
-    return "❌ Usage: /pay @user <amount> <service> or reply to a message with /pay <amount> <service>";
-  }
-  
-  let targetUserId = null;
-  let targetUsername = null;
-  let amount = 0;
-  let service = '';
-  
-  // Check if message is a reply
-  if (message.reply_to_message && message.reply_to_message.from) {
-    targetUserId = message.reply_to_message.from.id.toString();
-    targetUsername = message.reply_to_message.from.username || 
-                     message.reply_to_message.from.first_name ||
-                     `User_${targetUserId}`;
-    amount = parseInt(args[0]?.replace(/🎫/g, '').trim());
-    service = args.slice(1).join(' ') || 'Service payment';
-  } else if (args.length >= 2) {
-    const mention = args[0];
-    const username = mention.startsWith('@') ? mention.substring(1) : mention;
-    const targetUser = await roleService.getUserByName(username);
-    if (!targetUser) {
-      return `❌ User ${mention.startsWith('@') ? '@' : ''}${username} not found. They need to send a message in the chat first.`;
-    }
-    targetUserId = targetUser.messengerId;
-    targetUsername = targetUser.name;
-    amount = parseInt(args[1]?.replace(/🎫/g, '').trim());
-    service = args.slice(2).join(' ') || 'Service payment';
-  }
-  
-  if (isNaN(amount) || amount < 1) {
-    return "❌ Amount must be a positive number.";
-  }
-  
-  try {
-    const targetUser = await roleService.createOrUpdateUser(
-      targetUserId,
-      targetUsername,
-      message.chat.id.toString()
-    );
-    
-    // Can't pay yourself
-    if (targetUser.id === user.id) {
-      return "❌ You cannot pay yourself!";
-    }
-    
-    // Check sender's balance
-    const senderBalance = await ticketService.getBalance(user.id);
-    if (senderBalance < amount) {
-      return `❌ Insufficient tickets. You have ${senderBalance} 🎫, trying to pay ${amount} 🎫`;
-    }
-    
-    // Transfer tickets (subtract from sender, add to receiver)
-    await ticketService.awardTickets(user.id, -amount, user.id, `Payment to ${targetUser.name} for: ${service}`);
-    await ticketService.awardTickets(targetUser.id, amount, user.id, `Payment from ${user.name} for: ${service}`);
-    
-    const senderNewBalance = await ticketService.getBalance(user.id);
-    const receiverNewBalance = await ticketService.getBalance(targetUser.id);
-    
-    // Log activity
-    await activityService.logActivity('ticket_payment', {
-      userId: user.id,
-      targetUserId: targetUser.id,
-      details: { amount, service },
-      chatId: message.chat.id.toString()
-    });
-    
-    // Notify in chat
-    try {
-      await sendMessage(message.chat.id.toString(),
-        `💰 ${user.name} paid ${amount} 🎫 to ${targetUser.name} for: ${service}\n` +
-        `${targetUser.name}'s new balance: ${receiverNewBalance} 🎫`
-      );
-    } catch (error) {
-      // Fallback to returning message
-    }
-    
-    return `✅ You paid ${amount} 🎫 to ${targetUser.name} for: ${service}\n` +
-           `Your remaining balance: ${senderNewBalance} 🎫`;
-  } catch (error) {
-    return `❌ Error: ${error.message}`;
-  }
-}
-
 module.exports = {
   award,
   awardFromNaturalLanguage,
@@ -613,7 +522,6 @@ module.exports = {
   history,
   redeem,
   spend,
-  give,
-  pay
+  give
 };
 

@@ -236,21 +236,14 @@ function help() {
     `/awardbomb user <amount> <reason> - Award bombs\n` +
     `/ban user <reason> - Ban to jail (admin only, free)\n` +
     `/jail user <reason> - Send to jail (admin only, costs 5 tickets)\n` +
-    `/pardon user - Pardon from jail\n` +
-    `/addrule <text> - Add rule\n` +
-    `/removerule <id> - Remove rule\n` +
-    `/editrule <id> <text> - Edit rule\n` +
-    `/addaction <name> <cost> <desc> - Create action\n` +
-    `/setjailchat - Set jail chat\n` +
-    `/removejailchat - Remove jail chat\n` +
-    `/remove user - Remove user from jail chat (jail chat only)\n\n` +
+    `/remove user - Remove user from jail chat (jail chat only)\n` +
+    `/add user - Add user back to chat\n\n` +
     `**🎫 Tickets:**\n` +
     `/balance - Your balance\n` +
     `/history [user] - Transaction history\n` +
     `/redeem <action> - Redeem tickets\n` +
     `/spend <amount> <reason> - Spend tickets\n` +
-    `/give user <amount> - Gift tickets to another user (max 10/day)\n` +
-    `/pay user <amount> <service> - Pay for services (e.g., lawyers)\n\n` +
+    `/give user <amount> - Gift tickets to another user (max 10/day)\n\n` +
     `**⚔️ Assassination:**\n` +
     `/assassinate - Assassinate the King/Queen (costs 100 tickets, guards have 60s to block)\n` +
     `/block - Block an assassination attempt (Guards only, rewards 25 tickets)\n\n` +
@@ -273,8 +266,7 @@ function help() {
     `/nickname [name] - Set your nickname\n\n` +
     `**📋 Recap:**\n` +
     `/recap [hours] - Activity recap (default: 24h)\n` +
-    `/catchup - Your personal recap\n\n` +
-    `_Note: Lawyers can be paid using /give command. Legal cases are handled manually._`;
+    `/catchup - Your personal recap`;
 }
 
 /**
