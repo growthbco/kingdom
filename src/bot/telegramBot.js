@@ -23,10 +23,14 @@ const bot = new TelegramBot(BOT_TOKEN, {
 // Handle polling errors
 bot.on('polling_error', (error) => {
   console.error('Polling error:', error.message);
+  console.error('Error code:', error.code);
   if (error.message && error.message.includes('409')) {
     console.error('⚠️  Conflict detected - another bot instance may be running');
     console.error('Killing this instance. Please ensure only ONE instance is running.');
     setTimeout(() => process.exit(1), 1000);
+  } else if (error.code === 'ETELEGRAM' || error.code === 'EFATAL') {
+    console.error('⚠️  Fatal Telegram API error - will retry');
+    // Don't exit - let PM2 restart if needed
   }
 });
 

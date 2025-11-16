@@ -60,31 +60,53 @@ async function startServer() {
     console.log(`Bot username: @${botInfo.username}`);
     
     // Initialize scheduler for automated rewards
-    schedulerService.initializeScheduler();
+    try {
+      schedulerService.initializeScheduler();
+    } catch (schedulerError) {
+      console.error('Failed to initialize scheduler:', schedulerError);
+      // Don't exit - continue without scheduler
+    }
   } catch (error) {
     console.error('Failed to start server:', error);
-    process.exit(1);
+    console.error('Error stack:', error.stack);
+    // Exit only on critical startup failures
+    setTimeout(() => process.exit(1), 5000); // Give time for logs
   }
 }
 
+// Global error handlers to prevent crashes
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error);
+  console.error('Stack:', error.stack);
+  // Don't exit - log and continue
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise);
+  console.error('Reason:', reason);
+  // Don't exit - log and continue
+});
+
 // Handle all messages (text, photos, videos, etc.)
 bot.on('message', async (msg) => {
-  const chatId = msg.chat.id;
-  const userId = msg.from.id;
-  const username = msg.from.username || msg.from.first_name || `User_${userId}`;
-  const isGroup = msg.chat.type === 'group' || msg.chat.type === 'supergroup';
-  
-  // Ignore messages from bots
-  if (msg.from.is_bot) return;
-  
-  // Check if message is media (photo/video = meme)
-  const isMeme = !!(msg.photo || msg.video || msg.animation);
-  const text = msg.text ? msg.text.trim() : '';
-  const isCommand = text.startsWith('/');
-  
-  // Track message activity (for all messages, including media)
-  if (!isCommand) {
-    try {
+  // Wrap entire message handler in try-catch to prevent crashes
+  try {
+    const chatId = msg.chat.id;
+    const userId = msg.from.id;
+    const username = msg.from.username || msg.from.first_name || `User_${userId}`;
+    const isGroup = msg.chat.type === 'group' || msg.chat.type === 'supergroup';
+    
+    // Ignore messages from bots
+    if (msg.from.is_bot) return;
+    
+    // Check if message is media (photo/video = meme)
+    const isMeme = !!(msg.photo || msg.video || msg.animation);
+    const text = msg.text ? msg.text.trim() : '';
+    const isCommand = text.startsWith('/');
+    
+    // Track message activity (for all messages, including media)
+    if (!isCommand) {
+      try {
       const user = await roleService.createOrUpdateUser(
         userId.toString(),
         username,
@@ -350,22 +372,22 @@ bot.on('message', async (msg) => {
         }
       }
       
-    } catch (error) {
-      // Silently fail - don't interrupt chat
-      console.error('Error processing message:', error);
+      } catch (error) {
+        // Silently fail - don't interrupt chat
+        console.error('Error processing message:', error);
+      }
+      
+      // Don't process non-command messages further
+      return;
     }
     
-    // Don't process non-command messages further
+    // Process commands (text messages starting with /)
     if (!isCommand) return;
-  }
-  
-  // Process commands (text messages starting with /)
-  if (!isCommand) return;
-  
-  // Log incoming commands for debugging
-  console.log(`[${new Date().toISOString()}] Command from ${username} (${userId}) in chat ${chatId}: ${text.substring(0, 50)}`);
-  
-  try {
+    
+    // Log incoming commands for debugging
+    console.log(`[${new Date().toISOString()}] Command from ${username} (${userId}) in chat ${chatId}: ${text.substring(0, 50)}`);
+    
+    try {
     // Get or create user
     const user = await roleService.createOrUpdateUser(
       userId.toString(),
@@ -521,14 +543,20 @@ bot.on('message', async (msg) => {
       await sendMessage(chatId, response);
       console.log(`[${new Date().toISOString()}] Response sent successfully`);
     }
-  } catch (error) {
-    console.error(`[${new Date().toISOString()}] Error processing command:`, error);
-    console.error('Error stack:', error.stack);
-    try {
-      await sendMessage(chatId, `❌ Error processing command: ${error.message}`);
-    } catch (sendError) {
-      console.error('Error sending error message:', sendError);
+    } catch (error) {
+      console.error(`[${new Date().toISOString()}] Error processing command:`, error);
+      console.error('Error stack:', error.stack);
+      try {
+        await sendMessage(chatId, `❌ Error processing command: ${error.message}`);
+      } catch (sendError) {
+        console.error('Error sending error message:', sendError);
+      }
     }
+  } catch (error) {
+    // Catch any errors in the outer message handler
+    console.error(`[${new Date().toISOString()}] Fatal error in message handler:`, error);
+    console.error('Error stack:', error.stack);
+    // Don't crash - just log and continue
   }
 });
 
