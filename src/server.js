@@ -324,9 +324,10 @@ bot.on('message', async (msg) => {
         isMeme
       );
       
-      // Award activity rewards (async, don't wait - silent, no message)
-      automatedRewardsService.awardActivityRewards(user.id, chatId.toString())
-        .catch(err => console.error('Error awarding activity rewards:', err));
+      // DISABLED: Award activity rewards (async, don't wait - silent, no message)
+      // Automated ticket awards disabled to maintain correct balance counts
+      // automatedRewardsService.awardActivityRewards(user.id, chatId.toString())
+      //   .catch(err => console.error('Error awarding activity rewards:', err));
       
       // Store chat message for recap/summarization (only if text)
       if (text) {
