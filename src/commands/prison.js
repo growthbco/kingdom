@@ -175,10 +175,7 @@ async function ban(args, context) {
       message.chat.id.toString()
     );
     
-    if (targetUser.isInPrison) {
-      return `❌ ${targetUser.name} is already in prison.`;
-    }
-    
+    // Set prison status (allow re-banning even if already in prison)
     targetUser.isInPrison = true;
     await targetUser.save();
     
@@ -608,10 +605,7 @@ async function jail(args, context) {
       return "❌ You can't send yourself to jail!";
     }
     
-    if (targetUser.isInPrison) {
-      return `❌ ${targetUser.name} is already in prison.`;
-    }
-    
+    // Set prison status (allow re-jailing even if already in prison)
     // Deduct tickets
     await ticketService.awardTickets(
       user.id,
