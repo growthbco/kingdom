@@ -80,16 +80,32 @@ async function removeJailChat(chatId = null) {
 
 /**
  * Check if a chat is a jail/prison chat
+ * Checks both database configuration and chat name
  */
-async function isJailChat(chatId) {
+async function isJailChat(chatId, chatTitle = null) {
   try {
+    // First check database configuration
     const prisonGroup = await Group.findOne({
       where: {
         messengerGroupId: chatId.toString(),
         type: 'prison'
       }
     });
-    return prisonGroup !== null;
+    
+    if (prisonGroup) {
+      return true;
+    }
+    
+    // Also check if chat name contains "jail" (case-insensitive)
+    // This allows recognition of chats like "jail bitch" without needing /setjailchat
+    if (chatTitle) {
+      const lowerTitle = chatTitle.toLowerCase();
+      if (lowerTitle.includes('jail') || lowerTitle.includes('prison')) {
+        return true;
+      }
+    }
+    
+    return false;
   } catch (error) {
     console.error('Error checking if chat is jail chat:', error);
     return false;

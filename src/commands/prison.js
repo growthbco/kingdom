@@ -463,7 +463,8 @@ async function remove(args, context) {
   
   // FIRST: Check if this is a jail chat - this command ONLY works in jail chat
   const currentChatId = message.chat.id.toString();
-  const isJailChatCheck = await jailService.isJailChat(currentChatId);
+  const chatTitle = message.chat.title || '';
+  const isJailChatCheck = await jailService.isJailChat(currentChatId, chatTitle);
   
   if (!isJailChatCheck) {
     return "❌ The /remove command can only be used in the jail/prison chat.";
