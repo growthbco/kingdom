@@ -327,6 +327,7 @@ async function startNumberGuessGame(chatId) {
       messageId: message.message_id,
       startTime: new Date(),
       guessedUsers: new Set(), // Track who has guessed
+      guessedNumbers: new Set(), // Track which numbers have been guessed
       timer: null
     };
     
@@ -375,8 +376,17 @@ async function handleNumberGuess(chatId, userId, username, guess) {
       };
     }
     
-    // Mark user as having guessed
+    // Check if this number was already guessed
+    if (game.guessedNumbers.has(guessNum)) {
+      return { 
+        success: false, 
+        message: `❌ Number ${guessNum} has already been guessed! Please pick a different number.` 
+      };
+    }
+    
+    // Mark user as having guessed and number as guessed
     game.guessedUsers.add(userId.toString());
+    game.guessedNumbers.add(guessNum);
     
     if (guessNum === game.targetNumber) {
       // Winner!
@@ -411,22 +421,10 @@ async function handleNumberGuess(chatId, userId, username, guess) {
       return { success: false, message: "❌ Error: User not found" };
     }
     
-    // Wrong guess - provide hint
-    const difference = Math.abs(guessNum - game.targetNumber);
-    let hint = '';
-    if (difference <= 5) {
-      hint = '🔥 Very close!';
-    } else if (difference <= 10) {
-      hint = '🔥 Close!';
-    } else if (guessNum < game.targetNumber) {
-      hint = '📈 Higher!';
-    } else {
-      hint = '📉 Lower!';
-    }
-    
+    // Wrong guess - no hints, just confirm it was wrong
     return { 
       success: false, 
-      message: `❌ **Wrong guess!** ${hint}` 
+      message: `❌ **Wrong guess!** Number ${guessNum} is not correct. Try again!` 
     };
   } catch (error) {
     console.error('Error handling number guess:', error);
