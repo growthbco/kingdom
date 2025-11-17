@@ -258,6 +258,84 @@ bot.on('message', async (msg) => {
         }
       }
       
+      // Check for general profanity - deduct 10 tickets
+      if (text && !isCommand) {
+        const lowerText = text.toLowerCase();
+        // Common profanity/swear words (using word boundaries to avoid false positives)
+        const profanityWords = [
+          'fuck', 'fucking', 'fucked', 'fucker',
+          'shit', 'shitting', 'shitted',
+          'damn', 'damned', 'dammit',
+          'hell', 'hells',
+          'ass', 'asses', 'asshole', 'assholes',
+          'bitch', 'bitches', 'bitching',
+          'bastard', 'bastards',
+          'crap', 'crappy',
+          'piss', 'pissing', 'pissed',
+          'dick', 'dicks', 'dickhead',
+          'cunt', 'cunts',
+          'pussy', 'pussies',
+          'cock', 'cocks',
+          'tits', 'titties',
+          'whore', 'whores',
+          'slut', 'sluts',
+          'retard', 'retarded',
+          'gay', 'gays' // Only as insult, not identity
+        ];
+        
+        // Check for profanity using word boundaries
+        const hasProfanity = profanityWords.some(word => {
+          const regex = new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+          return regex.test(text);
+        });
+        
+        if (hasProfanity) {
+          try {
+            const ticketService = require('./services/ticketService');
+            const currentBalance = await ticketService.getBalance(user.id);
+            const deductionAmount = Math.min(10, currentBalance); // Don't go below 0
+            
+            if (deductionAmount > 0) {
+              await ticketService.awardTickets(
+                user.id,
+                -deductionAmount,
+                user.id,
+                'Penalty for using profanity'
+              );
+              
+              // Notify user
+              await sendMessage(
+                chatId.toString(),
+                `⚠️ **Profanity Detected**\n\n` +
+                `${user.name}, you have been docked ${deductionAmount} ticket${deductionAmount !== 1 ? 's' : ''} for using inappropriate language.\n\n` +
+                `💰 Your balance: ${currentBalance - deductionAmount} tickets`
+              );
+              
+              // Log activity
+              try {
+                await activityService.logActivity('user_banned', {
+                  userId: user.id,
+                  targetUserId: user.id,
+                  details: { reason: 'Profanity detected', ticketsDeducted: deductionAmount },
+                  chatId: chatId.toString()
+                });
+              } catch (error) {
+                console.error('Error logging profanity activity:', error);
+              }
+            } else {
+              // User has no tickets to deduct
+              await sendMessage(
+                chatId.toString(),
+                `⚠️ **Profanity Detected**\n\n` +
+                `${user.name}, profanity is not allowed. You have no tickets to deduct.`
+              );
+            }
+          } catch (ticketError) {
+            console.error('Error deducting tickets for profanity:', ticketError);
+          }
+        }
+      }
+      
       // Check for mentions of "sam" - auto-ban
       if (text) {
         const lowerText = text.toLowerCase();
