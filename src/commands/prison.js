@@ -505,12 +505,12 @@ async function jail(args, context) {
     try {
       const jailChatId = await jailService.getJailChatId(message.chat.id.toString());
       if (jailChatId) {
-        const jailMessage = `🔒 **New Prisoner Arrived (Ticket-Based)**\n\n` +
+        const jailMessage = `🔒 **New Prisoner Arrived**\n\n` +
           `**Name:** ${targetUser.name}\n` +
           `**User ID:** ${targetUser.messengerId}\n` +
           `**Reason:** ${reason}\n` +
-          `**Sent by:** ${user.name} (cost: ${JAIL_COST} 🎫)\n\n` +
-          `_${targetUser.name} can use /hirelawyer to hire a lawyer for defense._`;
+          `**Sent by:** ${user.name}\n\n` +
+          `_Please add this user to the jail chat manually._`;
         
         await sendMessage(jailChatId, jailMessage);
         jailNotification = `\n📢 Notification sent to jail chat.`;
@@ -523,9 +523,8 @@ async function jail(args, context) {
     try {
       const targetNotification = `🔒 **You've been sent to jail!**\n\n` +
         `**Sent by:** ${user.name}\n` +
-        `**Reason:** ${reason}\n` +
-        `**Cost:** ${JAIL_COST} 🎫\n\n` +
-        `You can hire a lawyer to defend your case using /hirelawyer <lawyer> <argument>`;
+        `**Reason:** ${reason}\n\n` +
+        `You lost 10 tickets as a penalty.`;
       
       await sendMessage(targetUserId, targetNotification);
     } catch (dmError) {
