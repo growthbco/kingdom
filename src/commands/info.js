@@ -375,13 +375,16 @@ async function daysAsKing(context) {
 
 /**
  * Show times in jail leaderboard
+ * Includes both /ban and /jail commands
  */
 async function timesInJail(context) {
   try {
-    // Get all jail events
+    // Get all jail and ban events (they're essentially the same thing)
     const jailEvents = await ActivityLog.findAll({
       where: {
-        eventType: 'user_jailed_tickets'
+        eventType: {
+          [Op.in]: ['user_jailed_tickets', 'user_banned']
+        }
       },
       include: [
         { model: User, as: 'targetUser', attributes: ['id', 'name', 'nickname'], required: true }
@@ -390,7 +393,7 @@ async function timesInJail(context) {
     });
 
     if (jailEvents.length === 0) {
-      return `🔒 **Times in Jail Leaderboard**\n\nNo one has been jailed yet!`;
+      return `🔒 **Times in Jail Leaderboard**\n\nNo one has been jailed or banned yet!`;
     }
 
     // Group by user and count occurrences, also collect reasons
