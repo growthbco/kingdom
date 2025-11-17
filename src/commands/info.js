@@ -1,10 +1,12 @@
 const User = require('../models/User');
 const Rule = require('../models/Rule');
 const RedemptionAction = require('../models/RedemptionAction');
+const ActivityLog = require('../models/ActivityLog');
 const ticketService = require('../services/ticketService');
 const bombService = require('../services/bombService');
 const roleService = require('../services/roleService');
 const userService = require('../services/userService');
+const { Op } = require('sequelize');
 
 /**
  * Show game status
@@ -235,7 +237,7 @@ function help() {
     `/award user <amount> <reason> - Award tickets (or /award user <amount> 💣 <reason> for bombs)\n` +
     `/awardbomb user <amount> <reason> - Award bombs\n` +
     `/ban user <reason> - Ban to jail (admin only, free)\n` +
-    `/jail user <reason> - Send to jail (admin only, costs 5 tickets)\n` +
+    `/jail user <reason> - Send to jail (admin only, user loses 10 tickets)\n` +
     `/remove user - Remove user from chat (admin only)\n` +
     `/add user - Add user back to chat\n\n` +
     `**🎫 Tickets:**\n` +
@@ -261,6 +263,7 @@ function help() {
     `/status - Game status\n` +
     `/roles - All role assignments\n` +
     `/leaderboard - Top ticket holders\n` +
+    `/timesinjail - Times in jail leaderboard\n` +
     `/myrole - Your role\n` +
     `/daysasking - Days as King/Queen counter\n` +
     `/nickname [name] - Set your nickname\n\n` +
@@ -370,6 +373,85 @@ async function daysAsKing(context) {
   }
 }
 
+/**
+ * Show times in jail leaderboard
+ */
+async function timesInJail(context) {
+  try {
+    // Get all jail events
+    const jailEvents = await ActivityLog.findAll({
+      where: {
+        eventType: 'user_jailed_tickets'
+      },
+      include: [
+        { model: User, as: 'targetUser', attributes: ['id', 'name', 'nickname'], required: true }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+
+    if (jailEvents.length === 0) {
+      return `🔒 **Times in Jail Leaderboard**\n\nNo one has been jailed yet!`;
+    }
+
+    // Group by user and count occurrences, also collect reasons
+    const jailStats = new Map();
+    
+    for (const event of jailEvents) {
+      const userId = event.targetUserId;
+      
+      if (!jailStats.has(userId)) {
+        jailStats.set(userId, {
+          user: event.targetUser,
+          count: 0,
+          reasons: []
+        });
+      }
+      
+      const stats = jailStats.get(userId);
+      stats.count++;
+      
+      // Extract reason from details
+      if (event.details) {
+        try {
+          const details = JSON.parse(event.details);
+          if (details.reason && details.reason.trim()) {
+            stats.reasons.push(details.reason.trim());
+          }
+        } catch (e) {
+          // If details can't be parsed, skip
+        }
+      }
+    }
+
+    // Convert to array and sort by count (descending)
+    const leaderboard = Array.from(jailStats.values())
+      .sort((a, b) => b.count - a.count);
+
+    let message = `🔒 **Times in Jail Leaderboard**\n\n`;
+    
+    leaderboard.forEach((item, idx) => {
+      const displayName = userService.getDisplayName(item.user);
+      message += `${idx + 1}. **${displayName}**: ${item.count} time${item.count !== 1 ? 's' : ''}\n`;
+      
+      // Show reasons (limit to last 5 to avoid message being too long)
+      if (item.reasons.length > 0) {
+        const recentReasons = item.reasons.slice(-5).reverse(); // Most recent first
+        const reasonsText = recentReasons.length === item.reasons.length
+          ? recentReasons.join(', ')
+          : `${recentReasons.join(', ')} (and ${item.reasons.length - recentReasons.length} more)`;
+        
+        message += `   📝 Reasons: ${reasonsText}\n`;
+      }
+      message += `\n`;
+    });
+
+    return message.trim();
+  } catch (error) {
+    console.error('Error getting times in jail:', error);
+    return `❌ Error: ${error.message}`;
+  }
+}
+
 module.exports = {
   status,
   leaderboard,
@@ -377,6 +459,7 @@ module.exports = {
   help,
   myRole,
   roles,
-  daysAsKing
+  daysAsKing,
+  timesInJail
 };
 

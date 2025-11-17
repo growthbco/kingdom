@@ -17,7 +17,9 @@ const ActivityLog = sequelize.define('ActivityLog', {
       'rule_edited',
       'user_banned',
       'user_pardoned',
-      'action_created'
+      'action_created',
+      'user_jailed_tickets',
+      'user_removed_from_jail'
     ),
     allowNull: false
   },
@@ -55,6 +57,7 @@ const ActivityLog = sequelize.define('ActivityLog', {
 });
 
 module.exports = ActivityLog;
+
 
 
 
