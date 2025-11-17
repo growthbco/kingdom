@@ -394,7 +394,8 @@ async function remove(args, context) {
 }
 
 /**
- * Send someone to jail using 5 tickets (requires valid reason)
+ * Send someone to jail (requires valid reason)
+ * The jailed person loses 10 tickets as penalty
  */
 async function jail(args, context) {
   const { senderId, user, message } = context;
@@ -404,8 +405,6 @@ async function jail(args, context) {
   if (!canAdmin) {
     return "❌ Only Enforcer and King/Queen can send users to jail.";
   }
-  
-  const JAIL_COST = 5; // Cost in tickets to send someone to jail
   
   // Check if message is a reply
   let targetUserId = null;
@@ -429,26 +428,15 @@ async function jail(args, context) {
     targetUsername = targetUser.name;
     reason = args.slice(1).join(' ') || '';
   } else {
-    return "❌ Usage: /jail @user <reason> or reply to a message with /jail <reason>\n\nYou need a valid reason to send someone to jail. This costs 5 🎫.";
+    return "❌ Usage: /jail @user <reason> or reply to a message with /jail <reason>\n\nYou need a valid reason to send someone to jail.";
   }
   
-  // Require a valid reason
-  if (!reason || reason.trim().length < 3) {
-    return "❌ You must provide a valid reason (at least 3 characters) to send someone to jail.\n\nUsage: /jail @user <reason>";
-  }
+    // Require a valid reason
+    if (!reason || reason.trim().length < 3) {
+      return "❌ You must provide a valid reason (at least 3 characters) to send someone to jail.\n\nUsage: /jail @user <reason>";
+    }
   
   try {
-    // Admins don't need to pay for /jail (it's free for them)
-    // But we'll keep the cost check for consistency, though admins bypass it
-    const balance = await ticketService.getBalance(user.id);
-    const needsPayment = balance < JAIL_COST;
-    
-    // Only deduct tickets if admin has enough (optional - could make it free for admins)
-    // For now, we'll still require tickets but admin permission is required
-    if (needsPayment) {
-      return `❌ Insufficient tickets! You need ${JAIL_COST} 🎫 to send someone to jail, but you only have ${balance} 🎫.`;
-    }
-    
     // Can't jail yourself
     const targetUser = await roleService.createOrUpdateUser(
       targetUserId,
@@ -469,19 +457,11 @@ async function jail(args, context) {
       return `❌ Cannot jail ${targetUser.name} - they are an admin (${targetUser.role}). Only the King can jail other admins.`;
     }
     
-    // Deduct tickets
-    await ticketService.awardTickets(
-      user.id,
-      -JAIL_COST,
-      user.id,
-      `Sent ${targetUser.name} to jail: ${reason}`
-    );
-    
     // Log activity
     await activityService.logActivity('user_jailed_tickets', {
       userId: user.id,
       targetUserId: targetUser.id,
-      details: { reason, cost: JAIL_COST },
+      details: { reason },
       chatId: message.chat.id.toString()
     });
     
@@ -552,13 +532,8 @@ async function jail(args, context) {
       // User might not have started conversation with bot - that's okay
     }
     
-    const newBalance = await ticketService.getBalance(user.id);
-    
-    return `🔒 ${targetUser.name} has been sent to jail!\n\n` +
-           `**Reason:** ${reason}\n` +
-           `**Cost:** ${JAIL_COST} 🎫\n` +
-           `**Your remaining balance:** ${newBalance} 🎫${kickResult}${jailNotification}\n\n` +
-           `_${targetUser.name} can hire a lawyer using /hirelawyer to defend their case._`;
+    return `🔒 ${targetUser.name} has been sent to jail!${kickResult}${jailNotification}\n\n` +
+           `**Reason:** ${reason}`;
   } catch (error) {
     return `❌ Error: ${error.message}`;
   }
