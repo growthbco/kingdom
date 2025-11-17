@@ -310,14 +310,13 @@ function stopGame(chatId) {
 async function startNumberGuessGame(chatId) {
   try {
     const targetNumber = Math.floor(Math.random() * 50) + 1; // Random number 1-50
-    const timeLimit = 60; // 60 seconds
     
     const message = await sendMessage(chatId,
       `💣 **Bomb Guessing Game!** 💣\n\n` +
       `🎯 Guess the number between **1-50**!\n\n` +
-      `⏰ **60 seconds** to guess\n` +
       `💣 **Prize:** 1 bomb for the winner!\n` +
-      `⚠️ **5 guesses per user**\n\n` +
+      `⚠️ **5 guesses per user**\n` +
+      `⏳ Game continues until someone wins!\n\n` +
       `Reply to this message with your number guess!`
     );
     
@@ -327,19 +326,12 @@ async function startNumberGuessGame(chatId) {
       messageId: message.message_id,
       startTime: new Date(),
       userGuesses: new Map(), // Track how many guesses each user has made (userId -> count)
-      guessedNumbers: new Set(), // Track which numbers have been guessed
-      timer: null
+      guessedNumbers: new Set() // Track which numbers have been guessed
     };
     
-    activeGames.set(chatId.toString(), gameData);
-    
-    // Auto-end after 60 seconds
-    gameData.timer = setTimeout(async () => {
-      const currentGame = activeGames.get(chatId.toString());
-      if (currentGame && currentGame.type === 'number_guess' && currentGame.messageId === message.message_id) {
-        await endNumberGuessGame(chatId, currentGame, false);
-      }
-    }, timeLimit * 1000);
+    const chatIdStr = chatId.toString();
+    activeGames.set(chatIdStr, gameData);
+    console.log(`[Number Guess] Game started in chat ${chatIdStr}, Message ID: ${message.message_id}, Target: ${targetNumber}`);
     
     return message;
   } catch (error) {
@@ -400,11 +392,6 @@ async function handleNumberGuess(chatId, userId, username, guess) {
       // Winner!
       const user = await roleService.getUserByMessengerId(userId.toString());
       if (user) {
-        // Clear timer
-        if (game.timer) {
-          clearTimeout(game.timer);
-        }
-        
         // Award bomb
         await bombService.awardBomb(user.id, 1, user.id, 'Won number guessing game');
         const bombCount = await bombService.getBombCount(user.id);
