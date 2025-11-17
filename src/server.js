@@ -310,19 +310,111 @@ bot.on('message', async (msg) => {
             }
           }
           
-          // Check if King/Queen is mentioned in the message
-          if (!isDirectedAtRoyalty) {
-            if (king && (lowerText.includes(king.name.toLowerCase()) || lowerText.includes('king'))) {
-              isDirectedAtRoyalty = true;
-              targetRoyalty = king;
-            } else if (queen && (lowerText.includes(queen.name.toLowerCase()) || lowerText.includes('queen'))) {
-              isDirectedAtRoyalty = true;
-              targetRoyalty = queen;
+          // Check if King/Queen is mentioned via @mention
+          if (!isDirectedAtRoyalty && msg.entities) {
+            for (const entity of msg.entities) {
+              if (entity.type === 'mention' && entity.user) {
+                const mentionedUserId = entity.user.id.toString();
+                if (king && king.messengerId === mentionedUserId) {
+                  isDirectedAtRoyalty = true;
+                  targetRoyalty = king;
+                  break;
+                } else if (queen && queen.messengerId === mentionedUserId) {
+                  isDirectedAtRoyalty = true;
+                  targetRoyalty = queen;
+                  break;
+                }
+              }
             }
           }
           
-          // Only deduct tickets if profanity is directed at royalty
+          // Check if profanity is directed at King/Queen by checking proximity
+          // Only flag if profanity appears near mentions of king/queen (within 5 words)
+          if (!isDirectedAtRoyalty) {
+            // Split text into words for proximity checking
+            const words = text.split(/\s+/);
+            const lowerWords = words.map(w => w.toLowerCase().replace(/[^\w]/g, ''));
+            
+            // Find positions of profanity words and royalty mentions
+            const profanityPositions = [];
+            const kingPositions = [];
+            const queenPositions = [];
+            
+            lowerWords.forEach((word, index) => {
+              // Check if this word contains profanity
+              if (profanityWords.some(profWord => {
+                const regex = new RegExp(`\\b${profWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+                return regex.test(word);
+              })) {
+                profanityPositions.push(index);
+              }
+              
+              // Check if this word mentions king (using exact word match to avoid false positives)
+              if (king) {
+                const kingNameLower = king.name.toLowerCase().replace(/[^\w]/g, '');
+                // Use exact word match or check if the word itself is "king" (not part of another word)
+                if (word === 'king' || word === kingNameLower) {
+                  kingPositions.push(index);
+                }
+              }
+              
+              // Check if this word mentions queen (using exact word match to avoid false positives)
+              if (queen) {
+                const queenNameLower = queen.name.toLowerCase().replace(/[^\w]/g, '');
+                // Use exact word match or check if the word itself is "queen" (not part of another word)
+                if (word === 'queen' || word === queenNameLower) {
+                  queenPositions.push(index);
+                }
+              }
+            });
+            
+            // Check if any profanity is within 5 words of a king/queen mention
+            const proximityThreshold = 5;
+            for (const profPos of profanityPositions) {
+              for (const kingPos of kingPositions) {
+                if (Math.abs(profPos - kingPos) <= proximityThreshold) {
+                  isDirectedAtRoyalty = true;
+                  targetRoyalty = king;
+                  break;
+                }
+              }
+              if (isDirectedAtRoyalty) break;
+              
+              for (const queenPos of queenPositions) {
+                if (Math.abs(profPos - queenPos) <= proximityThreshold) {
+                  isDirectedAtRoyalty = true;
+                  targetRoyalty = queen;
+                  break;
+                }
+              }
+              if (isDirectedAtRoyalty) break;
+            }
+          }
+          
+          // Only deduct tickets and remove user if profanity is directed at royalty
           if (isDirectedAtRoyalty) {
+            const jailService = require('./services/jailService');
+            const { kickChatMember } = require('./bot/telegramBot');
+            
+            const warningMessage = `⚠️ **PROFANITY DIRECTED AT ${targetRoyalty.role === 'king' ? 'KING' : 'QUEEN'} DETECTED!**\n\n` +
+              `${user.name}, you have used inappropriate language directed at the ${targetRoyalty.role === 'king' ? 'King' : 'Queen'}.\n\n` +
+              `🔒 You will be removed from this chat in 10 seconds...`;
+            
+            // Send warning message
+            await sendMessage(chatId.toString(), warningMessage);
+            
+            // Countdown and kick
+            const countdown = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
+            for (const num of countdown) {
+              await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+              try {
+                await sendMessage(chatId.toString(), `⏰ ${num}...`);
+              } catch (e) {
+                // Ignore errors during countdown
+              }
+            }
+            
+            // Deduct tickets
             try {
               const ticketService = require('./services/ticketService');
               const currentBalance = await ticketService.getBalance(user.id);
@@ -335,37 +427,71 @@ bot.on('message', async (msg) => {
                   user.id,
                   `Penalty for using profanity directed at ${targetRoyalty.role === 'king' ? 'King' : 'Queen'}`
                 );
-                
-                // Notify user
-                await sendMessage(
-                  chatId.toString(),
-                  `⚠️ **Profanity Detected**\n\n` +
-                  `${user.name}, you have been docked ${deductionAmount} ticket${deductionAmount !== 1 ? 's' : ''} for using inappropriate language directed at the ${targetRoyalty.role === 'king' ? 'King' : 'Queen'}.\n\n` +
-                  `💰 Your balance: ${currentBalance - deductionAmount} tickets`
-                );
-                
-                // Log activity
-                try {
-                  await activityService.logActivity('user_banned', {
-                    userId: user.id,
-                    targetUserId: user.id,
-                    details: { reason: `Profanity directed at ${targetRoyalty.role}`, ticketsDeducted: deductionAmount },
-                    chatId: chatId.toString()
-                  });
-                } catch (error) {
-                  console.error('Error logging profanity activity:', error);
-                }
-              } else {
-                // User has no tickets to deduct
-                await sendMessage(
-                  chatId.toString(),
-                  `⚠️ **Profanity Detected**\n\n` +
-                  `${user.name}, profanity directed at the ${targetRoyalty.role === 'king' ? 'King' : 'Queen'} is not allowed. You have no tickets to deduct.`
-                );
               }
             } catch (ticketError) {
               console.error('Error deducting tickets for profanity:', ticketError);
             }
+            
+            // Log activity
+            try {
+              await activityService.logActivity('user_banned', {
+                userId: user.id,
+                targetUserId: user.id,
+                details: { reason: `Profanity directed at ${targetRoyalty.role}` },
+                chatId: chatId.toString()
+              });
+            } catch (error) {
+              console.error('Error logging profanity activity:', error);
+            }
+            
+            // Kick the user
+            try {
+              const chatIdStr = chatId.toString();
+              const userIdInt = parseInt(userId);
+              
+              console.log(`Banning user ${userIdInt} from chat ${chatIdStr} for profanity directed at ${targetRoyalty.role}`);
+              
+              await kickChatMember(chatIdStr, userIdInt);
+              
+              await sendMessage(chatIdStr, `🔒 ${user.name} has been removed for using inappropriate language directed at the ${targetRoyalty.role === 'king' ? 'King' : 'Queen'}.`);
+            } catch (kickError) {
+              console.error('Error kicking user:', kickError);
+              
+              let errorMsg = '';
+              if (kickError.message) {
+                if (kickError.message.includes('not enough rights') || kickError.message.includes('chat_admin_required')) {
+                  errorMsg = `⚠️ Bot is not an admin - could not remove ${user.name}. Please remove them manually.`;
+                } else if (kickError.message.includes('user is an administrator')) {
+                  errorMsg = `⚠️ Cannot remove ${user.name} - they are an administrator of this chat.`;
+                } else {
+                  errorMsg = `⚠️ Could not remove ${user.name}: ${kickError.message}`;
+                }
+              } else {
+                errorMsg = `⚠️ Could not remove ${user.name}. Please check bot permissions.`;
+              }
+              
+              await sendMessage(chatId.toString(), errorMsg);
+            }
+            
+            // Notify jail chat if configured
+            try {
+              const jailChatId = await jailService.getJailChatId(chatId.toString());
+              if (jailChatId) {
+                const jailMessage = `🔒 **New Prisoner Arrived (Profanity)**\n\n` +
+                  `**Name:** ${user.name}\n` +
+                  `**User ID:** ${user.messengerId}\n` +
+                  `**Reason:** Profanity directed at ${targetRoyalty.role === 'king' ? 'King' : 'Queen'} ${targetRoyalty.name}\n` +
+                  `**Chat:** ${msg.chat.title || 'Main Chat'}\n\n` +
+                  `_Please add this user to the jail chat manually._`;
+                
+                await sendMessage(jailChatId, jailMessage);
+              }
+            } catch (error) {
+              console.error('Error sending jail notification:', error);
+            }
+            
+            // Return early - don't process message further
+            return;
           }
         }
       }
