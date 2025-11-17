@@ -150,6 +150,10 @@ async function handlePrefixCommand(command, args, context) {
     case 'jailleaderboard':
       return await infoCommands.timesInJail(context);
     
+    case 'invite':
+    case 'invitelink':
+      return await infoCommands.createInviteLink(context);
+    
     // Recap commands
     case 'recap':
       return await recapCommands.recap(args, context);

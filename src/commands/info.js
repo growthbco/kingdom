@@ -2,10 +2,12 @@ const User = require('../models/User');
 const Rule = require('../models/Rule');
 const RedemptionAction = require('../models/RedemptionAction');
 const ActivityLog = require('../models/ActivityLog');
+const Group = require('../models/Group');
 const ticketService = require('../services/ticketService');
 const bombService = require('../services/bombService');
 const roleService = require('../services/roleService');
 const userService = require('../services/userService');
+const { createChatInviteLink } = require('../bot/telegramBot');
 const { Op } = require('sequelize');
 
 /**
@@ -239,7 +241,8 @@ function help() {
     `/ban user <reason> - Ban to jail (admin only, free)\n` +
     `/jail user <reason> - Send to jail (admin only, user loses 10 tickets)\n` +
     `/remove user - Remove user from chat (admin only)\n` +
-    `/add user - Add user back to chat\n\n` +
+    `/add user - Add user back to chat\n` +
+    `/invite - Create temporary invite link for Kingdom Reborn (1 hour, admin only)\n\n` +
     `**🎫 Tickets:**\n` +
     `/balance - Your balance\n` +
     `/history [user] - Transaction history\n` +
@@ -455,6 +458,76 @@ async function timesInJail(context) {
   }
 }
 
+/**
+ * Create a temporary invite link for Kingdom Reborn chat (1 hour expiration)
+ * Admin only
+ */
+async function createInviteLink(context) {
+  try {
+    const { user } = context;
+    
+    // Check permissions - only admins can create invite links
+    const canAdmin = await roleService.canPerformAdminAction(user.id);
+    if (!canAdmin) {
+      return "❌ Only Enforcer and King/Queen can create invite links.";
+    }
+    
+    // Find the Kingdom Reborn chat
+    const kingdomRebornGroup = await Group.findOne({
+      where: {
+        groupName: {
+          [Op.like]: '%kingdom%reborn%'
+        }
+      }
+    });
+    
+    if (!kingdomRebornGroup) {
+      return "❌ Kingdom Reborn chat not found in database.";
+    }
+    
+    const chatId = kingdomRebornGroup.messengerGroupId;
+    
+    // Calculate expiration time (1 hour from now)
+    const expireDate = Math.floor(Date.now() / 1000) + 3600; // Current time + 1 hour in seconds
+    
+    // Create the invite link
+    try {
+      const invite = await createChatInviteLink(chatId, {
+        name: `Temporary invite - ${user.name}`,
+        expire_date: expireDate,
+        member_limit: 1, // Only allow 1 person to join via this link
+        creates_join_request: false
+      });
+      
+      if (invite && invite.invite_link) {
+        const expirationTime = new Date(expireDate * 1000).toLocaleString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        });
+        
+        return `🔗 **Temporary Invite Link Created**\n\n` +
+               `**Chat:** ${kingdomRebornGroup.groupName}\n` +
+               `**Link:** ${invite.invite_link}\n` +
+               `**Expires:** ${expirationTime} (1 hour from now)\n` +
+               `**Uses:** 1 person maximum\n\n` +
+               `⚠️ This link will expire in 1 hour.`;
+      } else {
+        return "❌ Failed to create invite link. Please try again.";
+      }
+    } catch (error) {
+      console.error('Error creating invite link:', error);
+      if (error.message && error.message.includes('not enough rights')) {
+        return "❌ Bot is not an admin in Kingdom Reborn chat. Please make the bot an admin first.";
+      }
+      return `❌ Error creating invite link: ${error.message}`;
+    }
+  } catch (error) {
+    console.error('Error in createInviteLink:', error);
+    return `❌ Error: ${error.message}`;
+  }
+}
+
 module.exports = {
   status,
   leaderboard,
@@ -463,6 +536,7 @@ module.exports = {
   myRole,
   roles,
   daysAsKing,
-  timesInJail
+  timesInJail,
+  createInviteLink
 };
 
