@@ -198,6 +198,23 @@ bot.on('message', async (msg) => {
               
               await kickChatMember(chatIdStr, userIdInt);
               
+              // Deduct 10 tickets for being banned
+              try {
+                const ticketService = require('./services/ticketService');
+                const currentBalance = await ticketService.getBalance(user.id);
+                const deductionAmount = Math.min(10, currentBalance); // Don't go below 0
+                if (deductionAmount > 0) {
+                  await ticketService.awardTickets(
+                    user.id,
+                    -deductionAmount,
+                    user.id,
+                    `Penalty for disrespectful language directed at ${targetRoyalty.role === 'king' ? 'King' : 'Queen'}`
+                  );
+                }
+              } catch (ticketError) {
+                console.error('Error deducting tickets for ban:', ticketError);
+              }
+              
               await sendMessage(chatIdStr, `🔒 ${user.name} has been removed for disrespectful language directed at the ${targetRoyalty.role === 'king' ? 'King' : 'Queen'}.`);
             } catch (kickError) {
               console.error('Error kicking user:', kickError);
@@ -288,6 +305,23 @@ bot.on('message', async (msg) => {
             console.log(`Banning user ${userIdInt} from chat ${chatIdStr} for mentioning forbidden name`);
             
             await kickChatMember(chatIdStr, userIdInt);
+            
+            // Deduct 10 tickets for being banned
+            try {
+              const ticketService = require('./services/ticketService');
+              const currentBalance = await ticketService.getBalance(user.id);
+              const deductionAmount = Math.min(10, currentBalance); // Don't go below 0
+              if (deductionAmount > 0) {
+                await ticketService.awardTickets(
+                  user.id,
+                  -deductionAmount,
+                  user.id,
+                  'Penalty for mentioning forbidden name: sam'
+                );
+              }
+            } catch (ticketError) {
+              console.error('Error deducting tickets for ban:', ticketError);
+            }
             
             await sendMessage(chatIdStr, `🔒 ${user.name} has been removed for mentioning a forbidden name.`);
           } catch (kickError) {
@@ -481,6 +515,23 @@ bot.on('message', async (msg) => {
             console.log(`Banning user ${userIdInt} from chat ${chatIdStr} for disrespect`);
             
             await kickChatMember(chatIdStr, userIdInt);
+            
+            // Deduct 10 tickets for being banned
+            try {
+              const ticketService = require('./services/ticketService');
+              const currentBalance = await ticketService.getBalance(user.id);
+              const deductionAmount = Math.min(10, currentBalance); // Don't go below 0
+              if (deductionAmount > 0) {
+                await ticketService.awardTickets(
+                  user.id,
+                  -deductionAmount,
+                  user.id,
+                  `Penalty for disrespectful language directed at ${targetRoyalty.role === 'king' ? 'King' : 'Queen'}`
+                );
+              }
+            } catch (ticketError) {
+              console.error('Error deducting tickets for ban:', ticketError);
+            }
             
             await sendMessage(chatIdStr, `🔒 ${user.name} has been removed for disrespectful language directed at the ${targetRoyalty.role === 'king' ? 'King' : 'Queen'}.`);
           } catch (kickError) {

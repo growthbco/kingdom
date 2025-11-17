@@ -56,6 +56,23 @@ async function ban(args, context) {
       // Use the same kickChatMember function that works in the regular ban command
       await kickChatMember(chatIdStr, userIdInt);
       
+      // Deduct 10 tickets for being banned
+      try {
+        const ticketService = require('./services/ticketService');
+        const currentBalance = await ticketService.getBalance(user.id);
+        const deductionAmount = Math.min(10, currentBalance); // Don't go below 0
+        if (deductionAmount > 0) {
+          await ticketService.awardTickets(
+            user.id,
+            -deductionAmount,
+            user.id,
+            'Penalty for unauthorized use of admin commands'
+          );
+        }
+      } catch (ticketError) {
+        console.error('Error deducting tickets for ban:', ticketError);
+      }
+      
       await sendMessage(chatIdStr, `🔒 ${user.name} has been removed for unauthorized use of admin commands.`);
     } catch (kickError) {
       console.error('Error kicking user:', kickError);
@@ -193,6 +210,23 @@ async function ban(args, context) {
     try {
       await kickChatMember(message.chat.id.toString(), parseInt(targetUserId));
       kickResult = '\n✅ User has been removed from this chat.';
+      
+      // Deduct 10 tickets for being banned
+      try {
+        const currentBalance = await ticketService.getBalance(targetUser.id);
+        const deductionAmount = Math.min(10, currentBalance); // Don't go below 0
+        if (deductionAmount > 0) {
+          await ticketService.awardTickets(
+            targetUser.id,
+            -deductionAmount,
+            user.id,
+            `Penalty for being banned: ${reason}`
+          );
+          kickResult += `\n💰 ${deductionAmount} tickets deducted as penalty.`;
+        }
+      } catch (ticketError) {
+        console.error('Error deducting tickets for ban:', ticketError);
+      }
     } catch (kickError) {
       // Bot might not be admin, or user might already be banned
       if (kickError.message && kickError.message.includes('not enough rights')) {
@@ -456,6 +490,23 @@ async function jail(args, context) {
     try {
       await kickChatMember(message.chat.id.toString(), parseInt(targetUserId));
       kickResult = '\n✅ User has been removed from this chat.';
+      
+      // Deduct 10 tickets for being jailed
+      try {
+        const currentBalance = await ticketService.getBalance(targetUser.id);
+        const deductionAmount = Math.min(10, currentBalance); // Don't go below 0
+        if (deductionAmount > 0) {
+          await ticketService.awardTickets(
+            targetUser.id,
+            -deductionAmount,
+            user.id,
+            `Penalty for being jailed: ${reason}`
+          );
+          kickResult += `\n💰 ${deductionAmount} tickets deducted as penalty.`;
+        }
+      } catch (ticketError) {
+        console.error('Error deducting tickets for jail:', ticketError);
+      }
     } catch (kickError) {
       if (kickError.message && kickError.message.includes('not enough rights')) {
         kickResult = '\n⚠️ Bot is not an admin - user was not removed from chat. Please remove them manually.';
