@@ -1,9 +1,10 @@
 const { sendMessage } = require('../bot/telegramBot');
 const ticketService = require('./ticketService');
 const roleService = require('../services/roleService');
+const bombService = require('./bombService');
 
 // Store active games
-const activeGames = new Map(); // chatId -> { type, question, answer, messageId, startTime, questionNumber, totalQuestions, category, timer }
+const activeGames = new Map(); // chatId -> { type, question, answer, messageId, startTime, questionNumber, totalQuestions, category, timer, guessedUsers }
 
 /**
  * Start a trivia game with a specific category
@@ -302,9 +303,166 @@ function stopGame(chatId) {
   return false;
 }
 
+/**
+ * Start a number guessing game (1-50)
+ * Winner gets a bomb
+ */
+async function startNumberGuessGame(chatId) {
+  try {
+    const targetNumber = Math.floor(Math.random() * 50) + 1; // Random number 1-50
+    const timeLimit = 60; // 60 seconds
+    
+    const message = await sendMessage(chatId,
+      `💣 **Bomb Guessing Game!** 💣\n\n` +
+      `🎯 Guess the number between **1-50**!\n\n` +
+      `⏰ **60 seconds** to guess\n` +
+      `💣 **Prize:** 1 bomb for the winner!\n` +
+      `⚠️ Only **1 guess per user**\n\n` +
+      `Reply to this message with your number guess!`
+    );
+    
+    const gameData = {
+      type: 'number_guess',
+      targetNumber: targetNumber,
+      messageId: message.message_id,
+      startTime: new Date(),
+      guessedUsers: new Set(), // Track who has guessed
+      timer: null
+    };
+    
+    activeGames.set(chatId.toString(), gameData);
+    
+    // Auto-end after 60 seconds
+    gameData.timer = setTimeout(async () => {
+      const currentGame = activeGames.get(chatId.toString());
+      if (currentGame && currentGame.type === 'number_guess' && currentGame.messageId === message.message_id) {
+        await endNumberGuessGame(chatId, currentGame, false);
+      }
+    }, timeLimit * 1000);
+    
+    return message;
+  } catch (error) {
+    console.error('Error starting number guess game:', error);
+    throw error;
+  }
+}
+
+/**
+ * Handle number guess
+ */
+async function handleNumberGuess(chatId, userId, username, guess) {
+  try {
+    const game = activeGames.get(chatId.toString());
+    
+    if (!game || game.type !== 'number_guess') {
+      return { success: false, message: null };
+    }
+    
+    // Check if user already guessed
+    if (game.guessedUsers.has(userId.toString())) {
+      return { 
+        success: false, 
+        message: `❌ You already made a guess! Only one guess per user.` 
+      };
+    }
+    
+    // Parse guess
+    const guessNum = parseInt(guess.trim());
+    if (isNaN(guessNum) || guessNum < 1 || guessNum > 50) {
+      return { 
+        success: false, 
+        message: `❌ Invalid guess! Please enter a number between 1-50.` 
+      };
+    }
+    
+    // Mark user as having guessed
+    game.guessedUsers.add(userId.toString());
+    
+    if (guessNum === game.targetNumber) {
+      // Winner!
+      const user = await roleService.getUserByMessengerId(userId.toString());
+      if (user) {
+        // Clear timer
+        if (game.timer) {
+          clearTimeout(game.timer);
+        }
+        
+        // Award bomb
+        await bombService.awardBomb(user.id, 1, user.id, 'Won number guessing game');
+        const bombCount = await bombService.getBombCount(user.id);
+        
+        // End game
+        activeGames.delete(chatId.toString());
+        
+        await sendMessage(chatId,
+          `🎉 **${username} WINS!** 🎉\n\n` +
+          `✅ **Correct number:** ${game.targetNumber}\n` +
+          `💣 **Prize:** 1 bomb awarded!\n` +
+          `💣 **${username}'s bomb count:** ${bombCount}\n\n` +
+          `Game over! Thanks for playing!`
+        );
+        
+        return { 
+          success: true, 
+          message: `🎉 **YOU WIN!** The number was ${game.targetNumber}! You won 1 💣! Your bomb count: ${bombCount}` 
+        };
+      }
+      
+      return { success: false, message: "❌ Error: User not found" };
+    }
+    
+    // Wrong guess - provide hint
+    const difference = Math.abs(guessNum - game.targetNumber);
+    let hint = '';
+    if (difference <= 5) {
+      hint = '🔥 Very close!';
+    } else if (difference <= 10) {
+      hint = '🔥 Close!';
+    } else if (guessNum < game.targetNumber) {
+      hint = '📈 Higher!';
+    } else {
+      hint = '📉 Lower!';
+    }
+    
+    return { 
+      success: false, 
+      message: `❌ **Wrong guess!** ${hint}` 
+    };
+  } catch (error) {
+    console.error('Error handling number guess:', error);
+    return { success: false, message: `❌ Error: ${error.message}` };
+  }
+}
+
+/**
+ * End number guess game (time's up)
+ */
+async function endNumberGuessGame(chatId, game, hasWinner) {
+  try {
+    if (game.timer) {
+      clearTimeout(game.timer);
+    }
+    
+    if (!hasWinner) {
+      await sendMessage(chatId,
+        `⏰ **Time's up!**\n\n` +
+        `The number was: **${game.targetNumber}**\n` +
+        `No one guessed correctly. Better luck next time!`
+      );
+    }
+    
+    activeGames.delete(chatId.toString());
+  } catch (error) {
+    console.error('Error ending number guess game:', error);
+    activeGames.delete(chatId.toString());
+  }
+}
+
 module.exports = {
   startTriviaGame,
   handleTriviaAnswer,
+  startNumberGuessGame,
+  handleNumberGuess,
   getActiveGame,
   stopGame
 };

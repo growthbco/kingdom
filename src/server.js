@@ -66,6 +66,31 @@ async function startServer() {
       console.error('Failed to initialize scheduler:', schedulerError);
       // Don't exit - continue without scheduler
     }
+    
+    // Start number guessing game in all main groups
+    try {
+      const Group = require('./models/Group');
+      const mainGroups = await Group.findAll({
+        where: { type: 'main' }
+      });
+      
+      if (mainGroups.length > 0) {
+        console.log(`Starting number guessing game in ${mainGroups.length} group(s)...`);
+        for (const group of mainGroups) {
+          try {
+            await miniGameService.startNumberGuessGame(group.messengerGroupId);
+            console.log(`✅ Started game in group: ${group.groupName || group.messengerGroupId}`);
+          } catch (error) {
+            console.error(`Error starting game in group ${group.messengerGroupId}:`, error.message);
+          }
+        }
+      } else {
+        console.log('No main groups found. Game will start when /guess command is used.');
+      }
+    } catch (error) {
+      console.error('Error starting number guessing games:', error);
+      // Don't exit - continue
+    }
   } catch (error) {
     console.error('Failed to start server:', error);
     console.error('Error stack:', error.stack);
@@ -382,17 +407,17 @@ bot.on('message', async (msg) => {
       await chatService.storeMessage(chatId.toString(), user.id, username, text, msg.message_id);
       }
       
-      // Check if this is a reply to a bounty/trivia game
+      // Check if this is a reply to a bounty/trivia/number guess game
       if (msg.reply_to_message) {
         const bounty = randomDropService.getActiveDrop(chatId.toString());
-        const trivia = miniGameService.getActiveGame(chatId.toString());
+        const game = miniGameService.getActiveGame(chatId.toString());
         
         if (bounty && bounty.type === 'bounty' && bounty.messageId === msg.reply_to_message.message_id) {
           await randomDropService.handleBountyAnswer(chatId.toString(), userId.toString(), username, text);
           return;
         }
         
-        if (trivia && trivia.type === 'trivia' && trivia.messageId === msg.reply_to_message.message_id) {
+        if (game && game.type === 'trivia' && game.messageId === msg.reply_to_message.message_id) {
           const result = await miniGameService.handleTriviaAnswer(chatId.toString(), userId.toString(), username, text);
           // Send feedback to the user who answered
           if (result && result.message) {
@@ -400,6 +425,19 @@ bot.on('message', async (msg) => {
               await sendMessage(chatId.toString(), result.message);
             } catch (error) {
               console.error('Error sending trivia feedback:', error);
+            }
+          }
+          return;
+        }
+        
+        if (game && game.type === 'number_guess' && game.messageId === msg.reply_to_message.message_id) {
+          const result = await miniGameService.handleNumberGuess(chatId.toString(), userId.toString(), username, text);
+          // Send feedback to the user who guessed
+          if (result && result.message) {
+            try {
+              await sendMessage(chatId.toString(), result.message);
+            } catch (error) {
+              console.error('Error sending guess feedback:', error);
             }
           }
           return;

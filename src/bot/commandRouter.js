@@ -8,6 +8,7 @@ const nicknameCommands = require('../commands/nickname');
 const bombCommands = require('../commands/bombs');
 const assassinationCommands = require('../commands/assassination');
 const triviaCommands = require('../commands/trivia');
+const guessCommands = require('../commands/guess');
 
 /**
  * Route parsed message to appropriate command handler
@@ -112,6 +113,10 @@ async function handlePrefixCommand(command, args, context) {
     case 'stoptrivia':
     case 'stoptrivia':
       return await triviaCommands.stopTrivia(context);
+    
+    case 'guess':
+    case 'bombgame':
+      return await guessCommands.startGuess(context);
     
     // Rule commands
     case 'rules':
