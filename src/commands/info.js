@@ -317,7 +317,7 @@ async function daysAsKing(context) {
     const kingsAndQueens = await User.findAll({
       where: {
         role: {
-          [require('sequelize').Op.in]: ['king', 'queen']
+          [Op.in]: ['king', 'queen']
         }
       },
       order: [['daysAsKing', 'DESC']]
