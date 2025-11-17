@@ -283,7 +283,11 @@ async function handleTriviaAnswer(chatId, userId, username, answer) {
  * Get active game for a chat
  */
 function getActiveGame(chatId) {
-  return activeGames.get(chatId.toString()) || null;
+  const chatIdStr = chatId.toString();
+  const game = activeGames.get(chatIdStr);
+  console.log(`[getActiveGame] Chat: ${chatIdStr}, Found game: ${!!game}, Type: ${game?.type}, MessageId: ${game?.messageId}`);
+  console.log(`[getActiveGame] All active games:`, Array.from(activeGames.keys()));
+  return game || null;
 }
 
 /**

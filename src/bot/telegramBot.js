@@ -24,13 +24,38 @@ const bot = new TelegramBot(BOT_TOKEN, {
 bot.on('polling_error', (error) => {
   console.error('Polling error:', error.message);
   console.error('Error code:', error.code);
-  if (error.message && error.message.includes('409')) {
+  
+  // Check for 409 Conflict (multiple instances polling)
+  if (error.response && error.response.statusCode === 409) {
+    console.error('⚠️  409 Conflict detected - another bot instance is polling');
+    console.error('⚠️  Stopping polling to avoid conflicts...');
+    
+    // Stop polling gracefully
+    bot.stopPolling().then(() => {
+      console.log('✅ Polling stopped successfully');
+      // Wait 30 seconds before exiting to let other instance take over
+      setTimeout(() => {
+        console.log('⚠️  Exiting to allow other instance to run');
+        process.exit(0); // Exit gracefully with code 0
+      }, 30000);
+    }).catch((stopError) => {
+      console.error('Error stopping polling:', stopError);
+      // Exit anyway after delay
+      setTimeout(() => process.exit(0), 30000);
+    });
+  } else if (error.message && error.message.includes('409')) {
     console.error('⚠️  Conflict detected - another bot instance may be running');
-    console.error('Killing this instance. Please ensure only ONE instance is running.');
-    setTimeout(() => process.exit(1), 1000);
+    console.error('⚠️  Waiting 30 seconds before graceful exit...');
+    bot.stopPolling().catch(() => {});
+    setTimeout(() => {
+      console.log('⚠️  Exiting to allow other instance to run');
+      process.exit(0);
+    }, 30000);
   } else if (error.code === 'ETELEGRAM' || error.code === 'EFATAL') {
     console.error('⚠️  Fatal Telegram API error - will retry');
-    // Don't exit - let PM2 restart if needed
+    // Don't exit - let Railway/PM2 restart if needed
+  } else {
+    console.error('⚠️  Unknown polling error - continuing...');
   }
 });
 

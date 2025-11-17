@@ -385,33 +385,16 @@ bot.on('message', async (msg) => {
       // Check if this is a reply to a bounty/trivia/number guess game
       if (msg.reply_to_message) {
         const chatIdStr = chatId.toString();
-        const bounty = randomDropService.getActiveDrop(chatIdStr);
-        const game = miniGameService.getActiveGame(chatIdStr);
         const replyMessageId = msg.reply_to_message.message_id;
         
-        console.log(`[Reply Check] Chat: ${chatIdStr}, Reply to: ${replyMessageId}, Game exists: ${!!game}, Game type: ${game?.type}, Game messageId: ${game?.messageId}`);
-        
-        if (bounty && bounty.type === 'bounty' && bounty.messageId === replyMessageId) {
-          await randomDropService.handleBountyAnswer(chatIdStr, userId.toString(), username, text);
-          return;
-        }
-        
-        if (game && game.type === 'trivia' && Number(game.messageId) === Number(replyMessageId)) {
-          const result = await miniGameService.handleTriviaAnswer(chatIdStr, userId.toString(), username, text);
-          // Send feedback to the user who answered
-          if (result && result.message) {
-            try {
-              await sendMessage(chatIdStr, result.message);
-            } catch (error) {
-              console.error('Error sending trivia feedback:', error);
-            }
-          }
-          return;
-        }
+        // Check for number guess game first (most common)
+        const game = miniGameService.getActiveGame(chatIdStr);
         
         if (game && game.type === 'number_guess') {
           // Check if reply matches game message ID (handle both string and number types)
           const gameMessageId = game.messageId;
+          
+          console.log(`[Number Guess] Reply detected - Reply ID: ${replyMessageId}, Game ID: ${gameMessageId}, Match: ${Number(replyMessageId) === Number(gameMessageId)}`);
           
           // Convert both to numbers for comparison
           if (Number(replyMessageId) === Number(gameMessageId)) {
@@ -429,6 +412,27 @@ bot.on('message', async (msg) => {
           } else {
             console.log(`[Number Guess] Reply ID mismatch - Reply: ${replyMessageId} (${typeof replyMessageId}), Game: ${gameMessageId} (${typeof gameMessageId})`);
           }
+        }
+        
+        // Check for bounty
+        const bounty = randomDropService.getActiveDrop(chatIdStr);
+        if (bounty && bounty.type === 'bounty' && bounty.messageId === replyMessageId) {
+          await randomDropService.handleBountyAnswer(chatIdStr, userId.toString(), username, text);
+          return;
+        }
+        
+        // Check for trivia
+        if (game && game.type === 'trivia' && Number(game.messageId) === Number(replyMessageId)) {
+          const result = await miniGameService.handleTriviaAnswer(chatIdStr, userId.toString(), username, text);
+          // Send feedback to the user who answered
+          if (result && result.message) {
+            try {
+              await sendMessage(chatIdStr, result.message);
+            } catch (error) {
+              console.error('Error sending trivia feedback:', error);
+            }
+          }
+          return;
         }
       }
       
@@ -677,14 +681,24 @@ bot.on('polling_error', (error) => {
 startServer();
 
 // Graceful shutdown
-process.once('SIGINT', () => {
+process.once('SIGINT', async () => {
   console.log('Shutting down bot...');
-  bot.stopPolling();
+  try {
+    await bot.stopPolling();
+    console.log('Polling stopped');
+  } catch (error) {
+    console.error('Error stopping polling:', error);
+  }
   process.exit(0);
 });
 
-process.once('SIGTERM', () => {
+process.once('SIGTERM', async () => {
   console.log('Shutting down bot...');
-  bot.stopPolling();
+  try {
+    await bot.stopPolling();
+    console.log('Polling stopped');
+  } catch (error) {
+    console.error('Error stopping polling:', error);
+  }
   process.exit(0);
 });
