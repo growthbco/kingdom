@@ -258,7 +258,7 @@ bot.on('message', async (msg) => {
         }
       }
       
-      // Check for general profanity - deduct 10 tickets
+      // Check for profanity directed at King/Queen - deduct 10 tickets
       if (text && !isCommand) {
         const lowerText = text.toLowerCase();
         // Common profanity/swear words (using word boundaries to avoid false positives)
@@ -290,48 +290,82 @@ bot.on('message', async (msg) => {
         });
         
         if (hasProfanity) {
-          try {
-            const ticketService = require('./services/ticketService');
-            const currentBalance = await ticketService.getBalance(user.id);
-            const deductionAmount = Math.min(10, currentBalance); // Don't go below 0
-            
-            if (deductionAmount > 0) {
-              await ticketService.awardTickets(
-                user.id,
-                -deductionAmount,
-                user.id,
-                'Penalty for using profanity'
-              );
-              
-              // Notify user
-              await sendMessage(
-                chatId.toString(),
-                `⚠️ **Profanity Detected**\n\n` +
-                `${user.name}, you have been docked ${deductionAmount} ticket${deductionAmount !== 1 ? 's' : ''} for using inappropriate language.\n\n` +
-                `💰 Your balance: ${currentBalance - deductionAmount} tickets`
-              );
-              
-              // Log activity
-              try {
-                await activityService.logActivity('user_banned', {
-                  userId: user.id,
-                  targetUserId: user.id,
-                  details: { reason: 'Profanity detected', ticketsDeducted: deductionAmount },
-                  chatId: chatId.toString()
-                });
-              } catch (error) {
-                console.error('Error logging profanity activity:', error);
-              }
-            } else {
-              // User has no tickets to deduct
-              await sendMessage(
-                chatId.toString(),
-                `⚠️ **Profanity Detected**\n\n` +
-                `${user.name}, profanity is not allowed. You have no tickets to deduct.`
-              );
+          // Check if profanity is directed at King/Queen
+          const User = require('./models/User');
+          const king = await User.findOne({ where: { role: 'king' } });
+          const queen = await User.findOne({ where: { role: 'queen' } });
+          
+          let isDirectedAtRoyalty = false;
+          let targetRoyalty = null;
+          
+          // Check if it's a reply to King/Queen
+          if (msg.reply_to_message && msg.reply_to_message.from) {
+            const replyUserId = msg.reply_to_message.from.id.toString();
+            if (king && king.messengerId === replyUserId) {
+              isDirectedAtRoyalty = true;
+              targetRoyalty = king;
+            } else if (queen && queen.messengerId === replyUserId) {
+              isDirectedAtRoyalty = true;
+              targetRoyalty = queen;
             }
-          } catch (ticketError) {
-            console.error('Error deducting tickets for profanity:', ticketError);
+          }
+          
+          // Check if King/Queen is mentioned in the message
+          if (!isDirectedAtRoyalty) {
+            if (king && (lowerText.includes(king.name.toLowerCase()) || lowerText.includes('king'))) {
+              isDirectedAtRoyalty = true;
+              targetRoyalty = king;
+            } else if (queen && (lowerText.includes(queen.name.toLowerCase()) || lowerText.includes('queen'))) {
+              isDirectedAtRoyalty = true;
+              targetRoyalty = queen;
+            }
+          }
+          
+          // Only deduct tickets if profanity is directed at royalty
+          if (isDirectedAtRoyalty) {
+            try {
+              const ticketService = require('./services/ticketService');
+              const currentBalance = await ticketService.getBalance(user.id);
+              const deductionAmount = Math.min(10, currentBalance); // Don't go below 0
+              
+              if (deductionAmount > 0) {
+                await ticketService.awardTickets(
+                  user.id,
+                  -deductionAmount,
+                  user.id,
+                  `Penalty for using profanity directed at ${targetRoyalty.role === 'king' ? 'King' : 'Queen'}`
+                );
+                
+                // Notify user
+                await sendMessage(
+                  chatId.toString(),
+                  `⚠️ **Profanity Detected**\n\n` +
+                  `${user.name}, you have been docked ${deductionAmount} ticket${deductionAmount !== 1 ? 's' : ''} for using inappropriate language directed at the ${targetRoyalty.role === 'king' ? 'King' : 'Queen'}.\n\n` +
+                  `💰 Your balance: ${currentBalance - deductionAmount} tickets`
+                );
+                
+                // Log activity
+                try {
+                  await activityService.logActivity('user_banned', {
+                    userId: user.id,
+                    targetUserId: user.id,
+                    details: { reason: `Profanity directed at ${targetRoyalty.role}`, ticketsDeducted: deductionAmount },
+                    chatId: chatId.toString()
+                  });
+                } catch (error) {
+                  console.error('Error logging profanity activity:', error);
+                }
+              } else {
+                // User has no tickets to deduct
+                await sendMessage(
+                  chatId.toString(),
+                  `⚠️ **Profanity Detected**\n\n` +
+                  `${user.name}, profanity directed at the ${targetRoyalty.role === 'king' ? 'King' : 'Queen'} is not allowed. You have no tickets to deduct.`
+                );
+              }
+            } catch (ticketError) {
+              console.error('Error deducting tickets for profanity:', ticketError);
+            }
           }
         }
       }
