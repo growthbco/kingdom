@@ -394,30 +394,69 @@ async function handleNumberGuess(chatId, userId, username, guess) {
     
     if (guessNum === game.targetNumber) {
       // Winner!
-      const user = await roleService.getUserByMessengerId(userId.toString());
-      if (user) {
-        // Award bomb
-        await bombService.awardBomb(user.id, 1, user.id, 'Won number guessing game');
-        const bombCount = await bombService.getBombCount(user.id);
-        
-        // End game
-        activeGames.delete(chatId.toString());
-        
-        await sendMessage(chatId,
-          `🎉 **${username} WINS!** 🎉\n\n` +
-          `✅ **Correct number:** ${game.targetNumber}\n` +
-          `💣 **Prize:** 1 bomb awarded!\n` +
-          `💣 **${username}'s bomb count:** ${bombCount}\n\n` +
-          `Game over! Thanks for playing!`
+      console.log(`[Number Guess] Winner detected! User: ${username}, UserId: ${userId}`);
+      
+      // Try to get user by messenger ID first
+      let user = await roleService.getUserByMessengerId(userId.toString());
+      
+      // If not found, create or update user
+      if (!user) {
+        console.log(`[Number Guess] User not found by messengerId, creating/updating user...`);
+        user = await roleService.createOrUpdateUser(
+          userId.toString(),
+          username,
+          chatId.toString()
         );
-        
-        return { 
-          success: true, 
-          message: `🎉 **YOU WIN!** The number was ${game.targetNumber}! You won 1 💣! Your bomb count: ${bombCount}` 
-        };
       }
       
-      return { success: false, message: "❌ Error: User not found" };
+      if (user) {
+        try {
+          console.log(`[Number Guess] Awarding bomb to user ${user.id} (${user.name})`);
+          
+          // Award bomb
+          await bombService.awardBomb(user.id, 1, user.id, 'Won number guessing game');
+          const bombCount = await bombService.getBombCount(user.id);
+          
+          console.log(`[Number Guess] Bomb awarded successfully! New count: ${bombCount}`);
+          
+          // End game
+          activeGames.delete(chatId.toString());
+          
+          await sendMessage(chatId,
+            `🎉 **${username} WINS!** 🎉\n\n` +
+            `✅ **Correct number:** ${game.targetNumber}\n` +
+            `💣 **Prize:** 1 bomb awarded!\n` +
+            `💣 **${username}'s bomb count:** ${bombCount}\n\n` +
+            `Game over! Thanks for playing!`
+          );
+          
+          return { 
+            success: true, 
+            message: `🎉 **YOU WIN!** The number was ${game.targetNumber}! You won 1 💣! Your bomb count: ${bombCount}` 
+          };
+        } catch (bombError) {
+          console.error(`[Number Guess] Error awarding bomb:`, bombError);
+          console.error(`[Number Guess] Error stack:`, bombError.stack);
+          
+          // End game anyway
+          activeGames.delete(chatId.toString());
+          
+          await sendMessage(chatId,
+            `🎉 **${username} WINS!** 🎉\n\n` +
+            `✅ **Correct number:** ${game.targetNumber}\n` +
+            `⚠️ **Error awarding bomb:** ${bombError.message}\n\n` +
+            `Please contact an admin to manually award the bomb.`
+          );
+          
+          return { 
+            success: true, 
+            message: `🎉 **YOU WIN!** The number was ${game.targetNumber}! There was an error awarding the bomb - please contact an admin.` 
+          };
+        }
+      }
+      
+      console.error(`[Number Guess] Could not find or create user for ${username} (${userId})`);
+      return { success: false, message: "❌ Error: Could not find or create user" };
     }
     
     // Wrong guess - no hints, just confirm it was wrong
