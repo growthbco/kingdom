@@ -384,20 +384,24 @@ bot.on('message', async (msg) => {
       
       // Check if this is a reply to a bounty/trivia/number guess game
       if (msg.reply_to_message) {
-        const bounty = randomDropService.getActiveDrop(chatId.toString());
-        const game = miniGameService.getActiveGame(chatId.toString());
+        const chatIdStr = chatId.toString();
+        const bounty = randomDropService.getActiveDrop(chatIdStr);
+        const game = miniGameService.getActiveGame(chatIdStr);
+        const replyMessageId = msg.reply_to_message.message_id;
         
-        if (bounty && bounty.type === 'bounty' && bounty.messageId === msg.reply_to_message.message_id) {
-          await randomDropService.handleBountyAnswer(chatId.toString(), userId.toString(), username, text);
+        console.log(`[Reply Check] Chat: ${chatIdStr}, Reply to: ${replyMessageId}, Game exists: ${!!game}, Game type: ${game?.type}, Game messageId: ${game?.messageId}`);
+        
+        if (bounty && bounty.type === 'bounty' && bounty.messageId === replyMessageId) {
+          await randomDropService.handleBountyAnswer(chatIdStr, userId.toString(), username, text);
           return;
         }
         
-        if (game && game.type === 'trivia' && game.messageId === msg.reply_to_message.message_id) {
-          const result = await miniGameService.handleTriviaAnswer(chatId.toString(), userId.toString(), username, text);
+        if (game && game.type === 'trivia' && Number(game.messageId) === Number(replyMessageId)) {
+          const result = await miniGameService.handleTriviaAnswer(chatIdStr, userId.toString(), username, text);
           // Send feedback to the user who answered
           if (result && result.message) {
             try {
-              await sendMessage(chatId.toString(), result.message);
+              await sendMessage(chatIdStr, result.message);
             } catch (error) {
               console.error('Error sending trivia feedback:', error);
             }
@@ -405,17 +409,26 @@ bot.on('message', async (msg) => {
           return;
         }
         
-        if (game && game.type === 'number_guess' && game.messageId === msg.reply_to_message.message_id) {
-          const result = await miniGameService.handleNumberGuess(chatId.toString(), userId.toString(), username, text);
-          // Send feedback to the user who guessed
-          if (result && result.message) {
-            try {
-              await sendMessage(chatId.toString(), result.message);
-            } catch (error) {
-              console.error('Error sending guess feedback:', error);
+        if (game && game.type === 'number_guess') {
+          // Check if reply matches game message ID (handle both string and number types)
+          const gameMessageId = game.messageId;
+          
+          // Convert both to numbers for comparison
+          if (Number(replyMessageId) === Number(gameMessageId)) {
+            console.log(`[Number Guess] Processing guess from ${username}: ${text}`);
+            const result = await miniGameService.handleNumberGuess(chatIdStr, userId.toString(), username, text);
+            // Send feedback to the user who guessed
+            if (result && result.message) {
+              try {
+                await sendMessage(chatIdStr, result.message);
+              } catch (error) {
+                console.error('Error sending guess feedback:', error);
+              }
             }
+            return;
+          } else {
+            console.log(`[Number Guess] Reply ID mismatch - Reply: ${replyMessageId} (${typeof replyMessageId}), Game: ${gameMessageId} (${typeof gameMessageId})`);
           }
-          return;
         }
       }
       

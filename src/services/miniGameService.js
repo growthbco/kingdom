@@ -355,7 +355,10 @@ async function handleNumberGuess(chatId, userId, username, guess) {
   try {
     const game = activeGames.get(chatId.toString());
     
+    console.log(`[Number Guess Handler] Chat: ${chatId}, Game exists: ${!!game}, Type: ${game?.type}`);
+    
     if (!game || game.type !== 'number_guess') {
+      console.log(`[Number Guess Handler] No active game found or wrong type`);
       return { success: false, message: null };
     }
     
