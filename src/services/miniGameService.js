@@ -317,7 +317,7 @@ async function startNumberGuessGame(chatId) {
       `🎯 Guess the number between **1-50**!\n\n` +
       `⏰ **60 seconds** to guess\n` +
       `💣 **Prize:** 1 bomb for the winner!\n` +
-      `⚠️ Only **1 guess per user**\n\n` +
+      `⚠️ **5 guesses per user**\n\n` +
       `Reply to this message with your number guess!`
     );
     
@@ -326,7 +326,7 @@ async function startNumberGuessGame(chatId) {
       targetNumber: targetNumber,
       messageId: message.message_id,
       startTime: new Date(),
-      guessedUsers: new Set(), // Track who has guessed
+      userGuesses: new Map(), // Track how many guesses each user has made (userId -> count)
       guessedNumbers: new Set(), // Track which numbers have been guessed
       timer: null
     };
@@ -359,14 +359,6 @@ async function handleNumberGuess(chatId, userId, username, guess) {
       return { success: false, message: null };
     }
     
-    // Check if user already guessed
-    if (game.guessedUsers.has(userId.toString())) {
-      return { 
-        success: false, 
-        message: `❌ You already made a guess! Only one guess per user.` 
-      };
-    }
-    
     // Parse guess
     const guessNum = parseInt(guess.trim());
     if (isNaN(guessNum) || guessNum < 1 || guessNum > 50) {
@@ -384,9 +376,22 @@ async function handleNumberGuess(chatId, userId, username, guess) {
       };
     }
     
-    // Mark user as having guessed and number as guessed
-    game.guessedUsers.add(userId.toString());
+    // Check how many guesses the user has made
+    const userIdStr = userId.toString();
+    const userGuessCount = game.userGuesses.get(userIdStr) || 0;
+    
+    if (userGuessCount >= 5) {
+      return { 
+        success: false, 
+        message: `❌ You've used all 5 guesses! Better luck next time.` 
+      };
+    }
+    
+    // Increment user's guess count and mark number as guessed
+    game.userGuesses.set(userIdStr, userGuessCount + 1);
     game.guessedNumbers.add(guessNum);
+    
+    const remainingGuesses = 5 - (userGuessCount + 1);
     
     if (guessNum === game.targetNumber) {
       // Winner!
@@ -422,9 +427,13 @@ async function handleNumberGuess(chatId, userId, username, guess) {
     }
     
     // Wrong guess - no hints, just confirm it was wrong
+    const guessText = remainingGuesses > 0 
+      ? `❌ **Wrong guess!** Number ${guessNum} is not correct. You have ${remainingGuesses} guess${remainingGuesses !== 1 ? 'es' : ''} remaining.`
+      : `❌ **Wrong guess!** Number ${guessNum} is not correct. You've used all 5 guesses!`;
+    
     return { 
       success: false, 
-      message: `❌ **Wrong guess!** Number ${guessNum} is not correct. Try again!` 
+      message: guessText
     };
   } catch (error) {
     console.error('Error handling number guess:', error);
