@@ -66,31 +66,6 @@ async function startServer() {
       console.error('Failed to initialize scheduler:', schedulerError);
       // Don't exit - continue without scheduler
     }
-    
-    // Start number guessing game in all main groups
-    try {
-      const Group = require('./models/Group');
-      const mainGroups = await Group.findAll({
-        where: { type: 'main' }
-      });
-      
-      if (mainGroups.length > 0) {
-        console.log(`Starting number guessing game in ${mainGroups.length} group(s)...`);
-        for (const group of mainGroups) {
-          try {
-            await miniGameService.startNumberGuessGame(group.messengerGroupId);
-            console.log(`✅ Started game in group: ${group.groupName || group.messengerGroupId}`);
-          } catch (error) {
-            console.error(`Error starting game in group ${group.messengerGroupId}:`, error.message);
-          }
-        }
-      } else {
-        console.log('No main groups found. Game will start when /guess command is used.');
-      }
-    } catch (error) {
-      console.error('Error starting number guessing games:', error);
-      // Don't exit - continue
-    }
   } catch (error) {
     console.error('Failed to start server:', error);
     console.error('Error stack:', error.stack);
