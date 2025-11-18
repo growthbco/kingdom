@@ -8,6 +8,7 @@ const randomDropService = require('./services/randomDropService');
 const miniGameService = require('./services/miniGameService');
 const schedulerService = require('./services/schedulerService');
 const sequelize = require('./database/connection');
+const { QueryTypes } = require('sequelize');
 
 const PORT = process.env.PORT || 3000;
 
@@ -21,8 +22,44 @@ async function startServer() {
     console.log('Database connection established.');
     
     // Ensure database schema is synchronized (creates tables if they don't exist)
-    await sequelize.sync({ force: false });
-    console.log('Database schema synchronized.');
+    // Use alter: true to update schema without dropping data
+    try {
+      await sequelize.sync({ force: false, alter: false });
+      console.log('Database schema synchronized.');
+    } catch (syncError) {
+      console.error('Error syncing database schema:', syncError.message);
+      // If sync fails due to enum issues, try to continue anyway
+      if (syncError.message && syncError.message.includes('enum')) {
+        console.warn('⚠️  Database enum mismatch detected. Continuing anyway...');
+        console.warn('⚠️  You may need to run: node src/database/add-prosecutor-role.js');
+      } else {
+        throw syncError; // Re-throw if it's not an enum issue
+      }
+    }
+    
+    // Try to add prosecutor role to enum if using PostgreSQL
+    try {
+      const dialect = sequelize.getDialect();
+      if (dialect === 'postgres') {
+        const queryInterface = sequelize.getQueryInterface();
+        // Check if prosecutor exists in enum, if not add it
+        try {
+          await sequelize.query(
+            `ALTER TYPE users_role_enum ADD VALUE IF NOT EXISTS 'prosecutor'`,
+            { type: QueryTypes.RAW }
+          );
+          console.log('✅ Prosecutor role added to enum (if needed).');
+        } catch (enumError) {
+          // Enum might already have prosecutor or table doesn't exist yet
+          if (!enumError.message.includes('already exists') && !enumError.message.includes('does not exist')) {
+            console.warn('⚠️  Could not add prosecutor to enum:', enumError.message);
+          }
+        }
+      }
+    } catch (error) {
+      // Non-critical - continue startup
+      console.log('Enum check (non-critical):', error.message);
+    }
     
     // Ensure Days as King columns exist
     try {
@@ -69,8 +106,14 @@ async function startServer() {
   } catch (error) {
     console.error('Failed to start server:', error);
     console.error('Error stack:', error.stack);
-    // Exit only on critical startup failures
-    setTimeout(() => process.exit(1), 5000); // Give time for logs
+    // Don't exit immediately - let Railway handle restarts
+    // This prevents rapid crash loops
+    console.error('⚠️  Server startup failed. Railway will restart automatically.');
+    // Exit only after a delay to allow logs to be captured
+    setTimeout(() => {
+      console.error('Exiting due to startup failure...');
+      process.exit(1);
+    }, 10000); // Increased delay to 10 seconds for better log capture
   }
 }
 
