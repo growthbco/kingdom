@@ -19,6 +19,8 @@ async function status(context) {
     const queen = await User.findOne({ where: { role: 'queen' } });
     const enforcer = await User.findOne({ where: { role: 'enforcer' } });
     const lawyers = await User.findAll({ where: { role: 'lawyer' } });
+    const guards = await User.findAll({ where: { role: 'guard' } });
+    const prosecutors = await User.findAll({ where: { role: 'prosecutor' } });
     const activeRules = await Rule.count({ where: { isActive: true } });
     const totalUsers = await User.count();
     const prisonCount = await User.count({ where: { isInPrison: true } });
@@ -45,6 +47,14 @@ async function status(context) {
     
     if (lawyers.length > 0) {
       message += `⚖️ Lawyers: ${lawyers.map(l => l.name).join(', ')}\n`;
+    }
+    
+    if (guards.length > 0) {
+      message += `🛡️ Guards: ${guards.map(g => g.name).join(', ')}\n`;
+    }
+    
+    if (prosecutors.length > 0) {
+      message += `⚖️ Prosecutors: ${prosecutors.map(p => p.name).join(', ')}\n`;
     }
     
     message += `\n📜 Active Rules: ${activeRules}\n`;
@@ -79,6 +89,8 @@ async function roles(context) {
       queen: [],
       enforcer: [],
       lawyer: [],
+      guard: [],
+      prosecutor: [],
       peasant: []
     };
     
@@ -95,6 +107,8 @@ async function roles(context) {
       queen: '👑',
       enforcer: '⚖️',
       lawyer: '⚖️',
+      guard: '🛡️',
+      prosecutor: '⚖️',
       peasant: '👤'
     };
     
@@ -103,11 +117,13 @@ async function roles(context) {
       queen: 'Queen',
       enforcer: 'Enforcer',
       lawyer: 'Lawyers',
+      guard: 'Guards',
+      prosecutor: 'Prosecutors',
       peasant: 'Peasants'
     };
     
     // Show roles in order of importance
-    const roleOrder = ['king', 'queen', 'enforcer', 'lawyer', 'peasant'];
+    const roleOrder = ['king', 'queen', 'enforcer', 'lawyer', 'guard', 'prosecutor', 'peasant'];
     
     roleOrder.forEach(role => {
       const roleUsers = roleGroups[role];
@@ -117,7 +133,8 @@ async function roles(context) {
         message += `${emoji} **${name}** (${roleUsers.length}):\n`;
         
         roleUsers.forEach(user => {
-          let userLine = `   • ${user.name}`;
+          const displayName = userService.getDisplayName(user);
+          let userLine = `   • ${displayName}`;
           if (user.isInPrison) {
             userLine += ` 🔒`;
           }
@@ -168,25 +185,11 @@ async function leaderboard(context) {
       return b.bombs - a.bombs;
     });
     
-    let message = "🏆 **Kingdom Leaderboard**\n\n";
+    let message = "🏆 Kingdom Leaderboard\n\n";
     
     balances.forEach((item, idx) => {
       const displayName = userService.getDisplayName(item.user);
-      const parts = [];
-      
-      if (item.tickets > 0) {
-        parts.push(`${item.tickets} 🎫`);
-      } else {
-        parts.push(`0 🎫`);
-      }
-      
-      if (item.bombs > 0) {
-        parts.push(`${item.bombs} 💣`);
-      } else {
-        parts.push(`0 💣`);
-      }
-      
-      message += `${idx + 1}. ${displayName}: ${parts.join(' and ')}\n`;
+      message += `${idx + 1}. ${displayName}: ${item.tickets} 🎫 and ${item.bombs} 💣\n`;
     });
     
     return message.trim();
@@ -231,11 +234,11 @@ async function actions(context) {
 function help() {
   return `📖 **Kingdom Bot Commands**\n\n` +
     `**👑 Admin** (Enforcer & King/Queen only):\n` +
-    `/setking user - Set King\n` +
-    `/setqueen user - Set Queen\n` +
-    `/setenforcer user - Set Enforcer\n` +
-    `/setguard user - Set Guard\n` +
-    `/setpeasant user - Set Peasant\n` +
+    `/setrole <role> @user - Set user role (roles: king, enforcer, guard, lawyer, prosecutor, peasant)\n` +
+    `/setking user - Set King (shortcut)\n` +
+    `/setenforcer user - Set Enforcer (shortcut)\n` +
+    `/setguard user - Set Guard (shortcut)\n` +
+    `/setpeasant user - Set Peasant (shortcut)\n` +
     `/award user <amount> <reason> - Award tickets (or /award user <amount> 💣 <reason> for bombs)\n` +
     `/awardbomb user <amount> <reason> - Award bombs\n` +
     `/ban user <reason> - Ban to jail (admin only, free)\n` +
@@ -253,9 +256,9 @@ function help() {
     `/assassinate - Assassinate the King/Queen (costs 100 tickets, guards have 60s to block)\n` +
     `/block - Block an assassination attempt (Guards only, rewards 25 tickets)\n\n` +
     `**🎮 Games:**\n` +
-    `/trivia <category> - Start a trivia game (King/Queen only)\n` +
+    `/trivia <category> - Start a trivia game (Admin only)\n` +
     `  Categories: popculture, sports, tech\n` +
-    `/stoptrivia - Stop active trivia game (King/Queen only)\n\n` +
+    `/stoptrivia - Stop active trivia game (Admin only)\n\n` +
     `**💣 Bombs:**\n` +
     `/bomb user <reason> - Use bomb (eliminates up to 5 tickets)\n\n` +
     `**📜 Rules:**\n` +

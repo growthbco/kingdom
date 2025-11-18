@@ -54,7 +54,6 @@ npm run dev
 
 ### Admin Commands (Enforcer & King/Queen only)
 - `/setking @user` or reply to message with `/setking` - Set user as King
-- `/setqueen @user` or reply to message with `/setqueen` - Set user as Queen
 - `/setenforcer @user` or reply to message with `/setenforcer` - Set user as Enforcer
 - `/setpeasant @user` or reply to message with `/setpeasant` - Set user as Peasant
 - `/award @user <amount> <reason>` or reply with `/award <amount> <reason>` - Award tickets

@@ -50,11 +50,13 @@ async function handlePrefixCommand(command, args, context) {
   switch (command) {
     // Admin commands
     case 'setking':
-    case 'setqueen':
     case 'setenforcer':
     case 'setguard':
     case 'setpeasant':
       return await adminCommands.setRole(command, args, context);
+    
+    case 'setrole':
+      return await adminCommands.setRoleCommand(args, context);
     
     case 'award':
       return await ticketCommands.award(args, context);

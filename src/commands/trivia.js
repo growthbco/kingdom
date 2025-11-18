@@ -3,16 +3,17 @@ const roleService = require('../services/roleService');
 const { sendMessage } = require('../bot/telegramBot');
 
 /**
- * Start a trivia game (King/Queen only)
+ * Start a trivia game (Admin only)
  */
 async function trivia(args, context) {
   const { user, message } = context;
   const chatId = message.chat.id.toString();
   
   try {
-    // Check if user is King or Queen
-    if (user.role !== 'king' && user.role !== 'queen') {
-      return "❌ Only the King/Queen can start trivia games!";
+    // Check admin permissions
+    const canAdmin = await roleService.canPerformAdminAction(user.id);
+    if (!canAdmin) {
+      return "❌ Only Enforcer and King/Queen can start trivia games!";
     }
     
     // Check if there's already an active game
@@ -59,16 +60,17 @@ async function trivia(args, context) {
 }
 
 /**
- * Stop/cancel an active trivia game (King/Queen only)
+ * Stop/cancel an active trivia game (Admin only)
  */
 async function stopTrivia(context) {
   const { user, message } = context;
   const chatId = message.chat.id.toString();
   
   try {
-    // Check if user is King or Queen
-    if (user.role !== 'king' && user.role !== 'queen') {
-      return "❌ Only the King/Queen can stop trivia games!";
+    // Check admin permissions
+    const canAdmin = await roleService.canPerformAdminAction(user.id);
+    if (!canAdmin) {
+      return "❌ Only Enforcer and King/Queen can stop trivia games!";
     }
     
     // Check if there's an active game

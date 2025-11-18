@@ -137,7 +137,7 @@ function parseNaturalLanguage(text) {
  * Extract role command from text
  */
 function extractRoleCommand(text) {
-  const roles = ['king', 'queen', 'enforcer', 'lawyer', 'peasant'];
+  const roles = ['king', 'enforcer', 'lawyer', 'peasant'];
   const lowerText = text.toLowerCase();
   
   for (const role of roles) {
