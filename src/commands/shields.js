@@ -37,15 +37,15 @@ async function awardShield(args, context) {
   
   if (targetUserId) {
     // Reply mode: /awardshield <amount> <reason>
-    amount = parseInt(args[0]?.replace(/🛡️/g, '').trim());
+    amount = parseInt(args[0]?.replace(/🛡️|⚔️/g, '').trim());
     reason = args.slice(1).join(' ') || 'No reason provided';
   } else {
     // Mention mode: /awardshield @user <amount> <reason>
-    const amountIndex = args.findIndex((arg, idx) => idx > 0 && !isNaN(parseInt(arg.replace(/🛡️/g, ''))));
+    const amountIndex = args.findIndex((arg, idx) => idx > 0 && !isNaN(parseInt(arg.replace(/🛡️|⚔️/g, ''))));
     if (amountIndex === -1) {
       return "❌ Could not find amount. Usage: /awardshield @user <amount> <reason>";
     }
-    amount = parseInt(args[amountIndex].replace(/🛡️/g, '').trim());
+    amount = parseInt(args[amountIndex].replace(/🛡️|⚔️/g, '').trim());
     reason = args.slice(amountIndex + 1).join(' ') || 'No reason provided';
     
     // Get user from mention (accepts both @username and username)
@@ -81,7 +81,7 @@ async function awardShield(args, context) {
       chatId: message.chat.id.toString()
     });
     
-    return `✅ Awarded ${amount} 🛡️ to ${targetUser.name}!\nReason: ${reason}\nNew shield count: ${shieldCount} 🛡️`;
+    return `✅ Awarded ${amount} 🛡️⚔️ to ${targetUser.name}!\nReason: ${reason}\nNew shield count: ${shieldCount} 🛡️⚔️`;
   } catch (error) {
     return `❌ Error: ${error.message}`;
   }
@@ -151,7 +151,7 @@ async function blockShield(context) {
            `You successfully blocked the bomb attack from ${attackerName}!\n\n` +
            `✅ Restored ${attack.ticketsLost} 🎫\n` +
            `Your balance: ${newBalance} 🎫\n` +
-           `Remaining shields: ${newShieldCount} 🛡️`;
+           `Remaining shields: ${newShieldCount} 🛡️⚔️`;
   } catch (error) {
     console.error('Error blocking shield:', error);
     return `❌ Error: ${error.message}`;
@@ -168,8 +168,8 @@ async function shieldStatus(context) {
     const shieldCount = await shieldService.getShieldCount(user.id);
     const attack = bombAttackService.getRecentAttack(user.id);
     
-    let message = `🛡️ **Shield Status**\n\n` +
-                  `${user.name}, you have ${shieldCount} 🛡️ shield${shieldCount !== 1 ? 's' : ''}.\n\n`;
+    let message = `🛡️⚔️ **Shield Status**\n\n` +
+                  `${user.name}, you have ${shieldCount} 🛡️⚔️ shield${shieldCount !== 1 ? 's' : ''}.\n\n`;
     
     if (attack) {
       const remainingSeconds = bombAttackService.getRemainingTime(user.id);

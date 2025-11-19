@@ -122,6 +122,9 @@ async function handlePrefixCommand(command, args, context) {
     case 'block':
       return await assassinationCommands.block(context);
     
+    case 'blockassassination':
+      return await assassinationCommands.blockAssassination(context);
+    
     // Trivia commands (King/Queen only)
     case 'trivia':
       return await triviaCommands.trivia(args, context);
@@ -151,6 +154,12 @@ async function handlePrefixCommand(command, args, context) {
     
     case 'help':
       return await infoCommands.help();
+    
+    case 'icons':
+    case 'icon':
+    case 'emoji':
+    case 'emojis':
+      return await infoCommands.icons();
     
     case 'myrole':
       return await infoCommands.myRole(context);

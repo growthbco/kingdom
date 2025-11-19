@@ -33,6 +33,11 @@ module.exports = [
     actionName: "Protection",
     description: "Protect yourself from being banned for 24 hours",
     ticketCost: 12
+  },
+  {
+    actionName: "Assassination",
+    description: "Assassinate a guard, lawyer, enforcer, or prosecutor (can be blocked within 60 seconds by anyone with a shield)",
+    ticketCost: 50
   }
 ];
 

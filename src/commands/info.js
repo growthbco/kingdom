@@ -197,7 +197,7 @@ async function leaderboard(context) {
       const displayName = userService.getDisplayName(item.user);
       const parts = [`${displayName}: ${item.tickets} 🎫`];
       if (item.bombs > 0) parts.push(`${item.bombs} 💣`);
-      if (item.shields > 0) parts.push(`${item.shields} 🛡️`);
+      if (item.shields > 0) parts.push(`${item.shields} 🛡️⚔️`);
       message += `${idx + 1}. ${parts.join(' and ')}\n`;
     });
     
@@ -238,6 +238,28 @@ async function actions(context) {
 }
 
 /**
+ * Show icon reference
+ */
+function icons() {
+  return `📋 **Icon Reference**\n\n` +
+    `**Currency & Items:**\n` +
+    `🎫 - Tickets (currency)\n` +
+    `💣 - Bombs (attack item)\n` +
+    `🛡️ - Shield (blocks bombs)\n` +
+    `⚔️ - Shield (blocks assassinations)\n\n` +
+    `**Roles:**\n` +
+    `👑 - King/Queen\n` +
+    `⚖️ - Enforcer/Lawyer/Prosecutor\n` +
+    `🛡️ - Guard\n` +
+    `👤 - Peasant\n\n` +
+    `**Actions:**\n` +
+    `⚔️ - Assassination\n` +
+    `🔒 - Prison/Jail\n` +
+    `📜 - Rules\n` +
+    `🎯 - Redemption Actions`;
+}
+
+/**
  * Show help
  */
 function help() {
@@ -264,18 +286,21 @@ function help() {
     `/spend <amount> <reason> - Spend tickets\n` +
     `/give user <amount> - Gift tickets to another user (max 10/day)\n\n` +
     `**⚔️ Assassination:**\n` +
-    `/assassinate - Assassinate the King/Queen (costs 100 tickets, guards have 60s to block)\n` +
-    `/block - Block an assassination attempt (Guards only, rewards 25 tickets)\n\n` +
+    `/assassinate - Assassinate the King/Queen (costs 100 tickets, guards have 90s to block)\n` +
+    `/block - Block a King/Queen assassination (Guards only, rewards 25 tickets)\n` +
+    `/redeem Assassination [@user] - Assassinate a guard/lawyer/enforcer/prosecutor (costs 50 tickets, can be blocked with ⚔️ shield within 90s)\n` +
+    `/blockassassination - Block a power user assassination attempt (requires 1 ⚔️ shield, anyone can use)\n\n` +
     `**🎮 Games:**\n` +
     `/trivia <category> - Start a trivia game (Admin only)\n` +
     `  Categories: popculture, sports, tech\n` +
     `/stoptrivia - Stop active trivia game (Admin only)\n\n` +
     `**💣 Bombs:**\n` +
     `/bomb user <reason> - Use bomb (eliminates up to 5 tickets)\n\n` +
-    `**🛡️ Shields:**\n` +
+    `**🛡️⚔️ Shields:**\n` +
     `/shield - Check your shield count\n` +
-    `/blockbomb - Block a recent bomb attack (must be used within 2 minutes)\n` +
-    `Shields can block bomb attacks and restore your tickets if used within 2 minutes\n\n` +
+    `/blockbomb - Block a recent bomb attack (must be used within 2 minutes, uses 🛡️ shield)\n` +
+    `/blockassassination - Block a power user assassination attempt (requires 1 ⚔️ shield, 90s window)\n` +
+    `Shields can block bomb attacks 🛡️ (restores tickets) and assassination attempts ⚔️ on guards/lawyers/enforcers/prosecutors\n\n` +
     `**📜 Rules:**\n` +
     `/rules - List all rules\n\n` +
     `**🎯 Actions:**\n` +
@@ -287,7 +312,8 @@ function help() {
     `/timesinjail - Times in jail leaderboard\n` +
     `/myrole - Your role\n` +
     `/daysasking - Days as King/Queen counter\n` +
-    `/nickname [name] - Set your nickname\n\n` +
+    `/nickname [name] - Set your nickname\n` +
+    `/icons - Icon reference guide\n\n` +
     `**📋 Recap:**\n` +
     `/recap [hours] - Activity recap (default: 24h)\n` +
     `/catchup - Your personal recap`;
@@ -550,6 +576,7 @@ module.exports = {
   status,
   leaderboard,
   actions,
+  icons,
   help,
   myRole,
   roles,

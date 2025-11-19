@@ -408,7 +408,7 @@ async function history(args, context) {
  * Redeem tickets for an action
  */
 async function redeem(args, context) {
-  const { senderId, user } = context;
+  const { senderId, user, message } = context;
   
   if (args.length === 0) {
     return "❌ Usage: /redeem <action name> or type /actions to see available actions.";
@@ -428,6 +428,14 @@ async function redeem(args, context) {
     
     if (!action) {
       return `❌ Action "${actionName}" not found. Type /actions to see available actions.`;
+    }
+    
+    // Special handling for Assassination action
+    if (action.actionName.toLowerCase() === 'assassination') {
+      const assassinationCommands = require('../commands/assassination');
+      // Pass remaining args (target user if specified) and actionId
+      const targetArgs = args.slice(1); // Remove "assassination" from args
+      return await assassinationCommands.assassinatePowerUser(targetArgs, context, action.id);
     }
     
     const result = await ticketService.redeemTickets(user.id, action.id);
