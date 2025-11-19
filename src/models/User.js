@@ -46,6 +46,12 @@ const User = sequelize.define('User', {
     allowNull: false,
     comment: 'Number of bombs user has'
   },
+  shields: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+    allowNull: false,
+    comment: 'Number of shields user has'
+  },
   daysAsKing: {
     type: DataTypes.INTEGER,
     defaultValue: 0,

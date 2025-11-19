@@ -6,6 +6,7 @@ const infoCommands = require('../commands/info');
 const recapCommands = require('../commands/recap');
 const nicknameCommands = require('../commands/nickname');
 const bombCommands = require('../commands/bombs');
+const shieldCommands = require('../commands/shields');
 const assassinationCommands = require('../commands/assassination');
 const triviaCommands = require('../commands/trivia');
 const guessCommands = require('../commands/guess');
@@ -61,12 +62,25 @@ async function handlePrefixCommand(command, args, context) {
     case 'award':
       return await ticketCommands.award(args, context);
     
+    case 'deduct':
+      return await ticketCommands.deduct(args, context);
+    
     case 'awardbomb':
       return await bombCommands.awardBomb(args, context);
     
     case 'bomb':
     case 'usebomb':
       return await bombCommands.useBomb(args, context);
+    
+    case 'awardshield':
+      return await shieldCommands.awardShield(args, context);
+    
+    case 'shield':
+    case 'shields':
+      return await shieldCommands.shieldStatus(context);
+    
+    case 'blockbomb':
+      return await shieldCommands.blockShield(context);
     
     case 'ban':
       return await prisonCommands.ban(args, context);

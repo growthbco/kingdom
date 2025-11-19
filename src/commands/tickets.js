@@ -143,6 +143,117 @@ async function award(args, context) {
 }
 
 /**
+ * Deduct/remove tickets from a user
+ */
+async function deduct(args, context) {
+  const { senderId, user, message } = context;
+  
+  // Check permissions
+  const canAdmin = await roleService.canPerformAdminAction(user.id);
+  if (!canAdmin) {
+    return "❌ Only Enforcer and King/Queen can deduct tickets.";
+  }
+  
+  // Check if message is a reply
+  let targetUserId = null;
+  let targetUsername = null;
+  
+  if (message.reply_to_message && message.reply_to_message.from) {
+    targetUserId = message.reply_to_message.from.id.toString();
+    targetUsername = message.reply_to_message.from.username || 
+                     message.reply_to_message.from.first_name ||
+                     `User_${targetUserId}`;
+  }
+  
+  if (args.length < 2 && !targetUserId) {
+    return "❌ Usage: /deduct @user <amount> <reason> or reply to a message with /deduct <amount> <reason>";
+  }
+  
+  // Parse arguments
+  let amount, reason;
+  
+  if (targetUserId) {
+    // Reply mode: /deduct <amount> <reason>
+    amount = parseInt(args[0]?.replace(/🎫/g, '').trim());
+    reason = args.slice(1).join(' ') || 'No reason provided';
+  } else {
+    // Mention mode: /deduct @user <amount> <reason>
+    const amountIndex = args.findIndex((arg, idx) => idx > 0 && !isNaN(parseInt(arg.replace(/🎫/g, ''))));
+    
+    if (amountIndex === -1) {
+      // Try without emoji removal
+      const amountIndexAlt = args.findIndex((arg, idx) => idx > 0 && !isNaN(parseInt(arg)));
+      if (amountIndexAlt === -1) {
+        return "❌ Could not find amount. Usage: /deduct @user <amount> <reason>";
+      }
+      amount = parseInt(args[amountIndexAlt]);
+      reason = args.slice(amountIndexAlt + 1).join(' ') || 'No reason provided';
+    } else {
+      amount = parseInt(args[amountIndex].replace(/🎫/g, '').trim());
+      reason = args.slice(amountIndex + 1).join(' ') || 'No reason provided';
+    }
+    
+    // Get user from mention (accepts both @username and username)
+    const mention = args[0];
+    const username = mention.startsWith('@') ? mention.substring(1) : mention;
+    const targetUser = await roleService.getUserByName(username);
+    if (!targetUser) {
+      return `❌ User ${mention.startsWith('@') ? '@' : ''}${username} not found. They need to send a message in the chat first.`;
+    }
+    targetUserId = targetUser.messengerId;
+    targetUsername = targetUser.name;
+  }
+  
+  if (isNaN(amount) || amount < 1) {
+    return "❌ Amount must be a positive number.";
+  }
+  
+  try {
+    const targetUser = await roleService.createOrUpdateUser(
+      targetUserId,
+      targetUsername,
+      message.chat.id.toString()
+    );
+    
+    // Check current balance
+    const currentBalance = await ticketService.getBalance(targetUser.id);
+    const deductAmount = Math.min(amount, currentBalance); // Don't deduct more than they have
+    
+    if (deductAmount === 0) {
+      return `❌ ${targetUser.name} has no tickets to deduct.`;
+    }
+    
+    // Deduct tickets (using negative amount)
+    await ticketService.awardTickets(targetUser.id, -deductAmount, user.id, reason);
+    const ticketBalance = await ticketService.getBalance(targetUser.id);
+    const bombCount = await bombService.getBombCount(targetUser.id);
+    
+    // Log activity
+    await activityService.logActivity('ticket_deducted', {
+      userId: user.id,
+      targetUserId: targetUser.id,
+      details: { amount: deductAmount, reason },
+      chatId: message.chat.id.toString()
+    });
+    
+    let balanceText = `New balance: ${ticketBalance} 🎫`;
+    if (bombCount > 0) {
+      balanceText += ` and ${bombCount} 💣`;
+    }
+    
+    let messageText = `✅ Deducted ${deductAmount} 🎫 from ${targetUser.name}!\nReason: ${reason}\n${balanceText}`;
+    
+    if (deductAmount < amount) {
+      messageText += `\n⚠️ Note: Only ${deductAmount} tickets were deducted (user had ${currentBalance} tickets).`;
+    }
+    
+    return messageText;
+  } catch (error) {
+    return `❌ Error: ${error.message}`;
+  }
+}
+
+/**
  * Award tickets from natural language
  */
 async function awardFromNaturalLanguage(text, context) {
@@ -517,6 +628,7 @@ async function give(args, context) {
 
 module.exports = {
   award,
+  deduct,
   awardFromNaturalLanguage,
   balance,
   history,

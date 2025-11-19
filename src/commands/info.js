@@ -5,6 +5,7 @@ const ActivityLog = require('../models/ActivityLog');
 const Group = require('../models/Group');
 const ticketService = require('../services/ticketService');
 const bombService = require('../services/bombService');
+const shieldService = require('../services/shieldService');
 const roleService = require('../services/roleService');
 const userService = require('../services/userService');
 const { createChatInviteLink } = require('../bot/telegramBot');
@@ -169,27 +170,35 @@ async function leaderboard(context) {
       users.map(async (user) => {
         const ticketBalance = await ticketService.getBalance(user.id);
         const bombCount = await bombService.getBombCount(user.id);
+        const shieldCount = await shieldService.getShieldCount(user.id);
         return {
           user,
           tickets: ticketBalance,
-          bombs: bombCount
+          bombs: bombCount,
+          shields: shieldCount
         };
       })
     );
     
-    // Sort by tickets (descending), then by bombs (descending)
+    // Sort by tickets (descending), then by bombs (descending), then by shields (descending)
     balances.sort((a, b) => {
       if (b.tickets !== a.tickets) {
         return b.tickets - a.tickets;
       }
-      return b.bombs - a.bombs;
+      if (b.bombs !== a.bombs) {
+        return b.bombs - a.bombs;
+      }
+      return b.shields - a.shields;
     });
     
     let message = "🏆 Kingdom Leaderboard\n\n";
     
     balances.forEach((item, idx) => {
       const displayName = userService.getDisplayName(item.user);
-      message += `${idx + 1}. ${displayName}: ${item.tickets} 🎫 and ${item.bombs} 💣\n`;
+      const parts = [`${displayName}: ${item.tickets} 🎫`];
+      if (item.bombs > 0) parts.push(`${item.bombs} 💣`);
+      if (item.shields > 0) parts.push(`${item.shields} 🛡️`);
+      message += `${idx + 1}. ${parts.join(' and ')}\n`;
     });
     
     return message.trim();
@@ -240,7 +249,9 @@ function help() {
     `/setguard user - Set Guard (shortcut)\n` +
     `/setpeasant user - Set Peasant (shortcut)\n` +
     `/award user <amount> <reason> - Award tickets (or /award user <amount> 💣 <reason> for bombs)\n` +
+    `/deduct user <amount> <reason> - Deduct/remove tickets from a user (admin only)\n` +
     `/awardbomb user <amount> <reason> - Award bombs\n` +
+    `/awardshield user <amount> <reason> - Award shields\n` +
     `/ban user <reason> - Ban to jail (admin only, free)\n` +
     `/jail user <reason> - Send to jail (admin only, user loses 10 tickets)\n` +
     `/remove user - Remove user from chat (admin only)\n` +
@@ -261,6 +272,10 @@ function help() {
     `/stoptrivia - Stop active trivia game (Admin only)\n\n` +
     `**💣 Bombs:**\n` +
     `/bomb user <reason> - Use bomb (eliminates up to 5 tickets)\n\n` +
+    `**🛡️ Shields:**\n` +
+    `/shield - Check your shield count\n` +
+    `/blockbomb - Block a recent bomb attack (must be used within 2 minutes)\n` +
+    `Shields can block bomb attacks and restore your tickets if used within 2 minutes\n\n` +
     `**📜 Rules:**\n` +
     `/rules - List all rules\n\n` +
     `**🎯 Actions:**\n` +

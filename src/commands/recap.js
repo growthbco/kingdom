@@ -106,6 +106,11 @@ function generateDramaticSummary(grouped, hours) {
 async function recap(args, context) {
   const { user, chatId, message } = context;
   
+  // Block rainbeau1 from using recap command
+  if (user.name.toLowerCase() === 'rainbeau1') {
+    return "❌ You do not have permission to use this command.";
+  }
+  
   try {
     // Parse hours argument (default 24 hours)
     let hours = 24;
@@ -273,6 +278,11 @@ async function recap(args, context) {
  */
 async function personalRecap(context) {
   const { user, chatId } = context;
+  
+  // Block rainbeau1 from using recap command
+  if (user.name.toLowerCase() === 'rainbeau1') {
+    return "❌ You do not have permission to use this command.";
+  }
   
   try {
     // Get user's last seen time

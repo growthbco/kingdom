@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const ticketService = require('./ticketService');
 const TicketTransaction = require('../models/TicketTransaction');
+const bombAttackService = require('./bombAttackService');
 
 /**
  * Get user's current bomb count
@@ -45,7 +46,7 @@ async function awardBomb(userId, amount, awardedBy, reason) {
 /**
  * Use a bomb on a target user (eliminates up to 5 tickets)
  */
-async function useBomb(userId, targetUserId, reason) {
+async function useBomb(userId, targetUserId, reason, chatId) {
   try {
     const user = await User.findByPk(userId);
     if (!user) {
@@ -79,14 +80,25 @@ async function useBomb(userId, targetUserId, reason) {
       reason || `Bomb used by ${user.name}`
     );
 
+    // Record the attack for potential shield blocking (2 minute window)
+    bombAttackService.recordAttack(
+      targetUserId,
+      userId,
+      ticketsToEliminate,
+      reason || `Bomb used by ${user.name}`,
+      chatId || null
+    );
+
     // Remove one bomb from user
     user.bombs = (user.bombs || 0) - 1;
     await user.save();
 
     return {
+      blocked: false,
       ticketsEliminated: ticketsToEliminate,
       targetBalance: targetBalance - ticketsToEliminate,
-      remainingBombs: user.bombs
+      remainingBombs: user.bombs,
+      shieldUsed: false
     };
   } catch (error) {
     console.error('Error using bomb:', error);
@@ -99,6 +111,7 @@ module.exports = {
   awardBomb,
   useBomb
 };
+
 
 
 

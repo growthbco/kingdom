@@ -1,4 +1,5 @@
 const bombService = require('../services/bombService');
+const bombAttackService = require('../services/bombAttackService');
 const roleService = require('../services/roleService');
 const activityService = require('../services/activityService');
 const ticketService = require('../services/ticketService');
@@ -127,21 +128,28 @@ async function useBomb(args, context) {
       return "❌ You can't bomb yourself!";
     }
     
-    const result = await bombService.useBomb(user.id, targetUser.id, reason);
+    const chatId = message.chat.id.toString();
+    const result = await bombService.useBomb(user.id, targetUser.id, reason, chatId);
     
     // Log activity
     await activityService.logActivity('bomb_used', {
       userId: user.id,
       targetUserId: targetUser.id,
-      details: { ticketsEliminated: result.ticketsEliminated, reason },
-      chatId: message.chat.id.toString()
+      details: { 
+        ticketsEliminated: result.ticketsEliminated || 0, 
+        blocked: result.blocked || false,
+        shieldUsed: result.shieldUsed || false,
+        reason 
+      },
+      chatId: chatId
     });
     
     return `💣 **BOMB DROPPED!**\n\n` +
            `${user.name} used a bomb on ${targetUser.name}!\n` +
            `💥 Eliminated ${result.ticketsEliminated} 🎫\n` +
            `${targetUser.name}'s new balance: ${result.targetBalance} 🎫\n` +
-           `${user.name}'s remaining bombs: ${result.remainingBombs} 💣`;
+           `${user.name}'s remaining bombs: ${result.remainingBombs} 💣\n\n` +
+           `🛡️ ${targetUser.name} can use /blockbomb within 2 minutes to block this attack!`;
   } catch (error) {
     return `❌ Error: ${error.message}`;
   }
@@ -151,6 +159,7 @@ module.exports = {
   awardBomb,
   useBomb
 };
+
 
 
 
