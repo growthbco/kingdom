@@ -35,8 +35,8 @@ module.exports = [
     ticketCost: 12
   },
   {
-    actionName: "Assassination",
-    description: "Assassinate a guard, lawyer, enforcer, or prosecutor (can be blocked within 60 seconds by anyone with a shield)",
+    actionName: "Kill",
+    description: "Kill a guard, lawyer, enforcer, or prosecutor (can be blocked within 90 seconds by anyone with a shield)",
     ticketCost: 50
   }
 ];

@@ -53,7 +53,7 @@ function blockAttempt(chatId, guardId) {
   
   // Check if this is a king/queen assassination (guard-based)
   if (!attempt.isKingQueen) {
-    return { success: false, message: 'This assassination requires a shield to block. Use /blockassassination instead.' };
+    return { success: false, message: 'This kill attempt requires a shield to block. Use /blockkill instead.' };
   }
   
   // Check if already blocked by this guard
@@ -106,7 +106,7 @@ function blockAttemptWithShield(chatId, blockerId) {
   
   // Check if this is a power user assassination (shield-based)
   if (attempt.isKingQueen) {
-    return { success: false, message: 'This assassination requires guards to block. Use /block instead.' };
+    return { success: false, message: 'This kill attempt requires guards to block. Use /block instead.' };
   }
   
   // Check if already blocked

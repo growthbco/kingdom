@@ -430,11 +430,11 @@ async function redeem(args, context) {
       return `❌ Action "${actionName}" not found. Type /actions to see available actions.`;
     }
     
-    // Special handling for Assassination action
-    if (action.actionName.toLowerCase() === 'assassination') {
+    // Special handling for Kill action
+    if (action.actionName.toLowerCase() === 'kill') {
       const assassinationCommands = require('../commands/assassination');
       // Pass remaining args (target user if specified) and actionId
-      const targetArgs = args.slice(1); // Remove "assassination" from args
+      const targetArgs = args.slice(1); // Remove "kill" from args
       return await assassinationCommands.assassinatePowerUser(targetArgs, context, action.id);
     }
     

@@ -122,7 +122,8 @@ async function handlePrefixCommand(command, args, context) {
     case 'block':
       return await assassinationCommands.block(context);
     
-    case 'blockassassination':
+    case 'blockkill':
+    case 'blockmurder':
       return await assassinationCommands.blockAssassination(context);
     
     // Trivia commands (King/Queen only)

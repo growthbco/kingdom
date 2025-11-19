@@ -287,11 +287,11 @@ async function assassinatePowerUser(args, context, actionId = null) {
     
     // Announce the attempt (tag the target using HTML mention)
     const targetMention = `<a href="tg://user?id=${targetUser.messengerId}">${targetUser.name}</a>`;
-    const announcement = `⚔️ <b>ASSASSINATION ATTEMPT!</b> ⚔️\n\n` +
-      `${targetMention} - An assassin has paid ${ASSASSINATION_REDEMPTION_COST} 🎫 to eliminate you (${targetUser.role})!\n\n` +
+    const announcement = `⚔️ <b>KILL ATTEMPT!</b> ⚔️\n\n` +
+      `${targetMention} - Someone has paid ${ASSASSINATION_REDEMPTION_COST} 🎫 to kill you (${targetUser.role})!\n\n` +
       `⚔️ <b>SHIELD HOLDERS!</b> Anyone with a shield can block this attempt within 90 seconds!\n` +
       `The target can block it themselves if they have a shield, or anyone else can block it for them!\n` +
-      `Use /blockassassination to stop the assassination (requires 1 ⚔️ shield)!\n\n` +
+      `Use /blockkill to stop the kill attempt (requires 1 ⚔️ shield)!\n\n` +
       `⏰ <b>90 seconds</b> to block...`;
     
     await sendMessage(chatId, announcement, { parse_mode: 'HTML' });
@@ -327,8 +327,8 @@ async function assassinatePowerUser(args, context, actionId = null) {
         });
         
         // Send dramatic announcement
-        const successAnnouncement = `⚔️ <b>ASSASSINATION SUCCESSFUL!</b> ⚔️\n\n` +
-          `${targetUser.name} (${targetUser.role}) has been assassinated!\n\n` +
+        const successAnnouncement = `⚔️ <b>KILL SUCCESSFUL!</b> ⚔️\n\n` +
+          `${targetUser.name} (${targetUser.role}) has been killed!\n\n` +
           `No one was able to block the attempt in time...\n` +
           `${user.name} is now the new ${targetUser.role}!\n` +
           `The position has been claimed!`;
@@ -339,8 +339,8 @@ async function assassinatePowerUser(args, context, actionId = null) {
         const targetMention = `<a href="tg://user?id=${targetUser.messengerId}">${targetUser.name}</a>`;
         try {
           await sendMessage(chatId,
-            `${targetMention} ⚔️ <b>You have been assassinated!</b> ⚔️\n\n` +
-            `You have been assassinated by ${user.name}.\n` +
+            `${targetMention} ⚔️ <b>You have been killed!</b> ⚔️\n\n` +
+            `You have been killed by ${user.name}.\n` +
             `They are now the new ${targetUser.role} and you are a lowly peasant.`,
             { parse_mode: 'HTML' }
           );
@@ -348,8 +348,8 @@ async function assassinatePowerUser(args, context, actionId = null) {
           // Fallback to private message if group message fails
           try {
             await sendMessage(targetUser.messengerId, 
-              `⚔️ **You have been assassinated!** ⚔️\n\n` +
-              `You have been assassinated by ${user.name}.\n` +
+              `⚔️ **You have been killed!** ⚔️\n\n` +
+              `You have been killed by ${user.name}.\n` +
               `They are now the new ${targetUser.role} and you are a lowly peasant.`
             );
           } catch (error) {
@@ -366,8 +366,8 @@ async function assassinatePowerUser(args, context, actionId = null) {
     }
     
     // Return immediately - the timer will handle completion
-    return `⚔️ **Assassination attempt initiated!** ⚔️\n\n` +
-      `You have paid ${ASSASSINATION_REDEMPTION_COST} 🎫 to attempt to eliminate ${targetUser.name}.\n` +
+    return `⚔️ **Kill attempt initiated!** ⚔️\n\n` +
+      `You have paid ${ASSASSINATION_REDEMPTION_COST} 🎫 to attempt to kill ${targetUser.name}.\n` +
       `Anyone with a shield has 90 seconds to block this attempt.\n` +
       `⚠️ **Warning:** If blocked, you will lose your tickets!\n\n` +
       `_Waiting for shield holders to respond..._`;
@@ -393,7 +393,7 @@ async function block(context) {
     
     // Check if there's an active attempt
     if (!assassinationService.hasActiveAttempt(chatId)) {
-      return "❌ There is no active assassination attempt to block.";
+      return "❌ There is no active kill attempt to block.";
     }
     
     // Block the attempt
@@ -514,13 +514,13 @@ async function blockAssassination(context) {
   try {
     // Check if there's an active attempt
     if (!assassinationService.hasActiveAttempt(chatId)) {
-      return "❌ There is no active assassination attempt to block.";
+      return "❌ There is no active kill attempt to block.";
     }
     
     // Check if user has a shield
     const shieldCount = await shieldService.getShieldCount(user.id);
     if (shieldCount < 1) {
-      return "❌ You don't have any shields! You need at least 1 shield to block an assassination attempt.";
+      return "❌ You don't have any shields! You need at least 1 shield to block a kill attempt.";
     }
     
     // Block the attempt (this will consume a shield)
@@ -564,16 +564,16 @@ async function blockAssassination(context) {
     });
     
     // Announce the block
-    const announcement = `⚔️ **ASSASSINATION BLOCKED!** ⚔️\n\n` +
+    const announcement = `⚔️ **KILL BLOCKED!** ⚔️\n\n` +
       `${user.name} successfully protected ${victim.name} using a shield!\n\n` +
-      `The assassin has been refunded ${ASSASSINATION_REDEMPTION_COST} 🎫.\n` +
+      `The killer has been refunded ${ASSASSINATION_REDEMPTION_COST} 🎫.\n` +
       `${user.name} used 1 ⚔️ shield to block the attempt.`;
     
     await sendMessage(chatId, announcement);
     
     const shieldBalance = await shieldService.getShieldCount(user.id);
     
-    return `✅ **Assassination blocked!**\n\n` +
+    return `✅ **Kill blocked!**\n\n` +
       `You successfully protected ${victim.name}!\n` +
       `Shield used: 1 ⚔️\n` +
       `Remaining shields: ${shieldBalance} 🛡️⚔️`;

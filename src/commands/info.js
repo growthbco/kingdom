@@ -246,14 +246,14 @@ function icons() {
     `🎫 - Tickets (currency)\n` +
     `💣 - Bombs (attack item)\n` +
     `🛡️ - Shield (blocks bombs)\n` +
-    `⚔️ - Shield (blocks assassinations)\n\n` +
+    `⚔️ - Shield (blocks kill attempts)\n\n` +
     `**Roles:**\n` +
     `👑 - King/Queen\n` +
     `⚖️ - Enforcer/Lawyer/Prosecutor\n` +
     `🛡️ - Guard\n` +
     `👤 - Peasant\n\n` +
     `**Actions:**\n` +
-    `⚔️ - Assassination\n` +
+    `⚔️ - Kill/Murder\n` +
     `🔒 - Prison/Jail\n` +
     `📜 - Rules\n` +
     `🎯 - Redemption Actions`;
@@ -285,11 +285,11 @@ function help() {
     `/redeem <action> - Redeem tickets\n` +
     `/spend <amount> <reason> - Spend tickets\n` +
     `/give user <amount> - Gift tickets to another user (max 10/day)\n\n` +
-    `**⚔️ Assassination:**\n` +
-    `/assassinate - Assassinate the King/Queen (costs 100 tickets, guards have 90s to block)\n` +
-    `/block - Block a King/Queen assassination (Guards only, rewards 25 tickets)\n` +
-    `/redeem Assassination [@user] - Assassinate a guard/lawyer/enforcer/prosecutor (costs 50 tickets, can be blocked with ⚔️ shield within 90s)\n` +
-    `/blockassassination - Block a power user assassination attempt (requires 1 ⚔️ shield, anyone can use)\n\n` +
+    `**⚔️ Kill/Murder:**\n` +
+    `/assassinate - Kill the King/Queen (costs 100 tickets, guards have 90s to block)\n` +
+    `/block - Block a King/Queen kill attempt (Guards only, rewards 25 tickets)\n` +
+    `/redeem Kill [@user] - Kill a guard/lawyer/enforcer/prosecutor (costs 50 tickets, can be blocked with ⚔️ shield within 90s)\n` +
+    `/blockkill - Block a power user kill attempt (requires 1 ⚔️ shield, anyone can use)\n\n` +
     `**🎮 Games:**\n` +
     `/trivia <category> - Start a trivia game (Admin only)\n` +
     `  Categories: popculture, sports, tech\n` +
@@ -299,8 +299,8 @@ function help() {
     `**🛡️⚔️ Shields:**\n` +
     `/shield - Check your shield count\n` +
     `/blockbomb - Block a recent bomb attack (must be used within 2 minutes, uses 🛡️ shield)\n` +
-    `/blockassassination - Block a power user assassination attempt (requires 1 ⚔️ shield, 90s window)\n` +
-    `Shields can block bomb attacks 🛡️ (restores tickets) and assassination attempts ⚔️ on guards/lawyers/enforcers/prosecutors\n\n` +
+    `/blockkill - Block a power user kill attempt (requires 1 ⚔️ shield, 90s window)\n` +
+    `Shields can block bomb attacks 🛡️ (restores tickets) and kill attempts ⚔️ on guards/lawyers/enforcers/prosecutors\n\n` +
     `**📜 Rules:**\n` +
     `/rules - List all rules\n\n` +
     `**🎯 Actions:**\n` +
