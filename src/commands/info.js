@@ -165,9 +165,23 @@ async function leaderboard(context) {
       return "🏆 No users found!";
     }
     
+    // Filter out excluded users (by name or nickname)
+    const excludedNames = ['king g', 'kingofthechat_bot', 'kingofthechat'];
+    const filteredUsers = users.filter(user => {
+      const displayName = userService.getDisplayName(user).toLowerCase();
+      const userName = user.name.toLowerCase();
+      const userNickname = (user.nickname || '').toLowerCase();
+      
+      return !excludedNames.some(excluded => 
+        displayName.includes(excluded) ||
+        userName.includes(excluded) ||
+        userNickname.includes(excluded)
+      );
+    });
+    
     // Get balances for all users
     const balances = await Promise.all(
-      users.map(async (user) => {
+      filteredUsers.map(async (user) => {
         const ticketBalance = await ticketService.getBalance(user.id);
         const bombCount = await bombService.getBombCount(user.id);
         const shieldCount = await shieldService.getShieldCount(user.id);
