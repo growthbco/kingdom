@@ -171,11 +171,13 @@ async function leaderboard(context) {
         const ticketBalance = await ticketService.getBalance(user.id);
         const bombCount = await bombService.getBombCount(user.id);
         const shieldCount = await shieldService.getShieldCount(user.id);
+        const killShieldCount = await shieldService.getKillShieldCount(user.id);
         return {
           user,
           tickets: ticketBalance,
           bombs: bombCount,
-          shields: shieldCount
+          shields: shieldCount,
+          killShields: killShieldCount
         };
       })
     );
@@ -197,7 +199,8 @@ async function leaderboard(context) {
       const displayName = userService.getDisplayName(item.user);
       const parts = [`${displayName}: ${item.tickets} 🎫`];
       if (item.bombs > 0) parts.push(`${item.bombs} 💣`);
-      if (item.shields > 0) parts.push(`${item.shields} 🛡️⚔️`);
+      if (item.shields > 0) parts.push(`${item.shields} 🛡️`);
+      if (item.killShields > 0) parts.push(`${item.killShields} ⚔️`);
       message += `${idx + 1}. ${parts.join(' and ')}\n`;
     });
     
@@ -246,7 +249,7 @@ function icons() {
     `🎫 - Tickets (currency)\n` +
     `💣 - Bombs (attack item)\n` +
     `🛡️ - Shield (blocks bombs)\n` +
-    `⚔️ - Shield (blocks kill attempts)\n\n` +
+    `⚔️ - Kill Shield (blocks kill attempts)\n\n` +
     `**Roles:**\n` +
     `👑 - King/Queen\n` +
     `⚖️ - Enforcer/Lawyer/Prosecutor\n` +
@@ -273,7 +276,8 @@ function help() {
     `/award user <amount> <reason> - Award tickets (or /award user <amount> 💣 <reason> for bombs)\n` +
     `/deduct user <amount> <reason> - Deduct/remove tickets from a user (admin only)\n` +
     `/awardbomb user <amount> <reason> - Award bombs\n` +
-    `/awardshield user <amount> <reason> - Award shields\n` +
+    `/awardshield user <amount> <reason> - Award shields (blocks bombs)\n` +
+    `/awardkillshield user <amount> <reason> - Award kill shields (blocks kill attempts)\n` +
     `/ban user <reason> - Ban to jail (admin only, free)\n` +
     `/jail user <reason> - Send to jail (admin only, user loses 10 tickets)\n` +
     `/remove user - Remove user from chat (admin only)\n` +
@@ -297,10 +301,11 @@ function help() {
     `**💣 Bombs:**\n` +
     `/bomb user <reason> - Use bomb (eliminates up to 5 tickets)\n\n` +
     `**🛡️⚔️ Shields:**\n` +
-    `/shield - Check your shield count\n` +
+    `/shield - Check your shield counts\n` +
     `/blockbomb - Block a recent bomb attack (must be used within 2 minutes, uses 🛡️ shield)\n` +
-    `/blockkill - Block a power user kill attempt (requires 1 ⚔️ shield, 90s window)\n` +
-    `Shields can block bomb attacks 🛡️ (restores tickets) and kill attempts ⚔️ on guards/lawyers/enforcers/prosecutors\n\n` +
+    `/blockkill - Block a power user kill attempt (requires 1 ⚔️ kill shield, 90s window)\n` +
+    `🛡️ Shields block bomb attacks (restores tickets)\n` +
+    `⚔️ Kill shields block kill attempts on guards/lawyers/enforcers/prosecutors\n\n` +
     `**📜 Rules:**\n` +
     `/rules - List all rules\n\n` +
     `**🎯 Actions:**\n` +

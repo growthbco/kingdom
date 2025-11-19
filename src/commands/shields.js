@@ -81,7 +81,7 @@ async function awardShield(args, context) {
       chatId: message.chat.id.toString()
     });
     
-    return `✅ Awarded ${amount} 🛡️⚔️ to ${targetUser.name}!\nReason: ${reason}\nNew shield count: ${shieldCount} 🛡️⚔️`;
+    return `✅ Awarded ${amount} 🛡️ to ${targetUser.name}!\nReason: ${reason}\nNew shield count: ${shieldCount} 🛡️`;
   } catch (error) {
     return `❌ Error: ${error.message}`;
   }
@@ -151,7 +151,7 @@ async function blockShield(context) {
            `You successfully blocked the bomb attack from ${attackerName}!\n\n` +
            `✅ Restored ${attack.ticketsLost} 🎫\n` +
            `Your balance: ${newBalance} 🎫\n` +
-           `Remaining shields: ${newShieldCount} 🛡️⚔️`;
+           `Remaining shields: ${newShieldCount} 🛡️`;
   } catch (error) {
     console.error('Error blocking shield:', error);
     return `❌ Error: ${error.message}`;
@@ -168,8 +168,11 @@ async function shieldStatus(context) {
     const shieldCount = await shieldService.getShieldCount(user.id);
     const attack = bombAttackService.getRecentAttack(user.id);
     
+    const killShieldCount = await shieldService.getKillShieldCount(user.id);
     let message = `🛡️⚔️ **Shield Status**\n\n` +
-                  `${user.name}, you have ${shieldCount} 🛡️⚔️ shield${shieldCount !== 1 ? 's' : ''}.\n\n`;
+                  `${user.name}, you have:\n` +
+                  `🛡️ ${shieldCount} shield${shieldCount !== 1 ? 's' : ''} (blocks bombs)\n` +
+                  `⚔️ ${killShieldCount} kill shield${killShieldCount !== 1 ? 's' : ''} (blocks kill attempts)\n\n`;
     
     if (attack) {
       const remainingSeconds = bombAttackService.getRemainingTime(user.id);
@@ -187,8 +190,91 @@ async function shieldStatus(context) {
   }
 }
 
+/**
+ * Award kill shields to a user (admin only)
+ */
+async function awardKillShield(args, context) {
+  const { senderId, user, message } = context;
+  
+  // Check permissions
+  const canAdmin = await roleService.canPerformAdminAction(user.id);
+  if (!canAdmin) {
+    return "❌ Only Enforcer and King/Queen can award kill shields.";
+  }
+  
+  // Check if message is a reply
+  let targetUserId = null;
+  let targetUsername = null;
+  
+  if (message.reply_to_message && message.reply_to_message.from) {
+    targetUserId = message.reply_to_message.from.id.toString();
+    targetUsername = message.reply_to_message.from.username || 
+                     message.reply_to_message.from.first_name ||
+                     `User_${targetUserId}`;
+  }
+  
+  if (args.length < 1 && !targetUserId) {
+    return "❌ Usage: /awardkillshield @user <amount> <reason> or reply to a message with /awardkillshield <amount> <reason>";
+  }
+  
+  // Parse arguments
+  let amount, reason;
+  
+  if (targetUserId) {
+    // Reply mode: /awardkillshield <amount> <reason>
+    amount = parseInt(args[0]?.replace(/⚔️/g, '').trim());
+    reason = args.slice(1).join(' ') || 'No reason provided';
+  } else {
+    // Mention mode: /awardkillshield @user <amount> <reason>
+    const amountIndex = args.findIndex((arg, idx) => idx > 0 && !isNaN(parseInt(arg.replace(/⚔️/g, ''))));
+    if (amountIndex === -1) {
+      return "❌ Could not find amount. Usage: /awardkillshield @user <amount> <reason>";
+    }
+    amount = parseInt(args[amountIndex].replace(/⚔️/g, '').trim());
+    reason = args.slice(amountIndex + 1).join(' ') || 'No reason provided';
+    
+    // Get user from mention (accepts both @username and username)
+    const mention = args[0];
+    const username = mention.startsWith('@') ? mention.substring(1) : mention;
+    const targetUser = await roleService.getUserByName(username);
+    if (!targetUser) {
+      return `❌ User ${mention.startsWith('@') ? '@' : ''}${username} not found. They need to send a message in the chat first.`;
+    }
+    targetUserId = targetUser.messengerId;
+    targetUsername = targetUser.name;
+  }
+  
+  if (isNaN(amount) || amount < 1) {
+    return "❌ Amount must be a positive number.";
+  }
+  
+  try {
+    const targetUser = await roleService.createOrUpdateUser(
+      targetUserId,
+      targetUsername,
+      message.chat.id.toString()
+    );
+    
+    await shieldService.awardKillShield(targetUser.id, amount, user.id, reason);
+    const killShieldCount = await shieldService.getKillShieldCount(targetUser.id);
+    
+    // Log activity
+    await activityService.logActivity('kill_shield_awarded', {
+      userId: user.id,
+      targetUserId: targetUser.id,
+      details: { amount, reason },
+      chatId: message.chat.id.toString()
+    });
+    
+    return `✅ Awarded ${amount} ⚔️ kill shield${amount !== 1 ? 's' : ''} to ${targetUser.name}!\nReason: ${reason}\nNew kill shield count: ${killShieldCount} ⚔️`;
+  } catch (error) {
+    return `❌ Error: ${error.message}`;
+  }
+}
+
 module.exports = {
   awardShield,
+  awardKillShield,
   blockShield,
   shieldStatus
 };

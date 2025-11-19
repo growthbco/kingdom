@@ -150,9 +150,9 @@ async function assassinate(args, context) {
               `⚔️ **You have been assassinated!** ⚔️\n\n` +
               `You have been assassinated by ${user.name}.\n` +
               `They are now the new ${newRole === 'king' ? 'King' : 'Queen'} and you are a lowly peasant.`
-            );
-          } catch (error) {
-            // User might not have started conversation with bot - that's okay
+          );
+        } catch (error) {
+          // User might not have started conversation with bot - that's okay
           }
         }
       }
@@ -289,9 +289,9 @@ async function assassinatePowerUser(args, context, actionId = null) {
     const targetMention = `<a href="tg://user?id=${targetUser.messengerId}">${targetUser.name}</a>`;
     const announcement = `⚔️ <b>KILL ATTEMPT!</b> ⚔️\n\n` +
       `${targetMention} - Someone has paid ${ASSASSINATION_REDEMPTION_COST} 🎫 to kill you (${targetUser.role})!\n\n` +
-      `⚔️ <b>SHIELD HOLDERS!</b> Anyone with a shield can block this attempt within 90 seconds!\n` +
-      `The target can block it themselves if they have a shield, or anyone else can block it for them!\n` +
-      `Use /blockkill to stop the kill attempt (requires 1 ⚔️ shield)!\n\n` +
+      `⚔️ <b>KILL SHIELD HOLDERS!</b> Anyone with a kill shield can block this attempt within 90 seconds!\n` +
+      `The target can block it themselves if they have a kill shield, or anyone else can block it for them!\n` +
+      `Use /blockkill to stop the kill attempt (requires 1 ⚔️ kill shield)!\n\n` +
       `⏰ <b>90 seconds</b> to block...`;
     
     await sendMessage(chatId, announcement, { parse_mode: 'HTML' });
@@ -517,24 +517,24 @@ async function blockAssassination(context) {
       return "❌ There is no active kill attempt to block.";
     }
     
-    // Check if user has a shield
-    const shieldCount = await shieldService.getShieldCount(user.id);
-    if (shieldCount < 1) {
-      return "❌ You don't have any shields! You need at least 1 shield to block a kill attempt.";
+    // Check if user has a kill shield
+    const killShieldCount = await shieldService.getKillShieldCount(user.id);
+    if (killShieldCount < 1) {
+      return "❌ You don't have any kill shields! You need at least 1 ⚔️ kill shield to block a kill attempt.";
     }
     
-    // Block the attempt (this will consume a shield)
+    // Block the attempt (this will consume a kill shield)
     const result = assassinationService.blockAttemptWithShield(chatId, user.id);
     
     if (!result.success) {
       return `❌ ${result.message}`;
     }
     
-    // Use a shield
-    const shieldUsed = await shieldService.useShield(user.id);
-    if (!shieldUsed) {
+    // Use a kill shield
+    const killShieldUsed = await shieldService.useKillShield(user.id);
+    if (!killShieldUsed) {
       // This shouldn't happen, but handle it just in case
-      return "❌ Failed to use shield. Please try again.";
+      return "❌ Failed to use kill shield. Please try again.";
     }
     
     // Get victim and assassin info
@@ -567,16 +567,16 @@ async function blockAssassination(context) {
     const announcement = `⚔️ **KILL BLOCKED!** ⚔️\n\n` +
       `${user.name} successfully protected ${victim.name} using a shield!\n\n` +
       `The killer has been refunded ${ASSASSINATION_REDEMPTION_COST} 🎫.\n` +
-      `${user.name} used 1 ⚔️ shield to block the attempt.`;
+      `${user.name} used 1 ⚔️ kill shield to block the attempt.`;
     
     await sendMessage(chatId, announcement);
     
-    const shieldBalance = await shieldService.getShieldCount(user.id);
+    const killShieldBalance = await shieldService.getKillShieldCount(user.id);
     
     return `✅ **Kill blocked!**\n\n` +
       `You successfully protected ${victim.name}!\n` +
-      `Shield used: 1 ⚔️\n` +
-      `Remaining shields: ${shieldBalance} 🛡️⚔️`;
+      `Kill shield used: 1 ⚔️\n` +
+      `Remaining kill shields: ${killShieldBalance} ⚔️`;
   } catch (error) {
     return `❌ Error: ${error.message}`;
   }

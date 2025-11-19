@@ -75,6 +75,9 @@ async function handlePrefixCommand(command, args, context) {
     case 'awardshield':
       return await shieldCommands.awardShield(args, context);
     
+    case 'awardkillshield':
+      return await shieldCommands.awardKillShield(args, context);
+    
     case 'shield':
     case 'shields':
       return await shieldCommands.shieldStatus(context);
