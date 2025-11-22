@@ -902,7 +902,12 @@ bot.on('message', async (msg) => {
     // Send response
     if (response) {
       console.log(`[${new Date().toISOString()}] Sending response to chat ${chatId}`);
-      await sendMessage(chatId, response);
+      // Handle object responses (for market with inline keyboards)
+      if (typeof response === 'object' && response.text) {
+        await bot.sendMessage(chatId, response.text, response.options || {});
+      } else {
+        await sendMessage(chatId, response);
+      }
       console.log(`[${new Date().toISOString()}] Response sent successfully`);
     }
     } catch (error) {
@@ -945,6 +950,33 @@ bot.on('message_reaction', async (update) => {
     }
   } catch (error) {
     console.error('Error handling reaction:', error);
+  }
+});
+
+// Handle callback queries (for interactive buttons)
+bot.on('callback_query', async (query) => {
+  try {
+    const marketCommands = require('./commands/market');
+    const context = {
+      chatId: query.message.chat.id.toString(),
+      senderId: query.from.id.toString(),
+      message: query.message
+    };
+    
+    // Handle market callback queries
+    if (query.data && query.data.startsWith('market_')) {
+      await marketCommands.handleCallbackQuery(query, context);
+    }
+  } catch (error) {
+    console.error('Error handling callback query:', error);
+    try {
+      await bot.answerCallbackQuery(query.id, {
+        text: `❌ Error: ${error.message}`,
+        show_alert: true
+      });
+    } catch (e) {
+      // Ignore errors answering callback
+    }
   }
 });
 

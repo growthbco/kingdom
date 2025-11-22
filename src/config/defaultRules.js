@@ -9,6 +9,10 @@ module.exports = [
     category: "Behavior"
   },
   {
+    ruleText: "Users must not change their username - your identity in The Kingdom is permanent and changing it is strictly prohibited",
+    category: "Behavior"
+  },
+  {
     ruleText: "Respect the King/Queen's decisions",
     category: "Gameplay"
   },
@@ -91,6 +95,10 @@ module.exports = [
   {
     ruleText: "Bombs eliminate 5 tickets from any person you choose (use /bomb @user <reason>)",
     category: "Bombs"
+  },
+  {
+    ruleText: "You cannot mention or talk about The Kingdom outside of The Kingdom",
+    category: "Behavior"
   }
 ];
 

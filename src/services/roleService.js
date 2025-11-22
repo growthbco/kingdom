@@ -146,7 +146,7 @@ async function setUserRole(userId, role) {
       throw new Error('User not found');
     }
 
-    const validRoles = ['king', 'queen', 'peasant', 'enforcer', 'lawyer', 'guard', 'prosecutor'];
+    const validRoles = ['king', 'queen', 'peasant', 'enforcer', 'lawyer', 'guard', 'prosecutor', 'master'];
     if (!validRoles.includes(role)) {
       throw new Error(`Invalid role: ${role}`);
     }

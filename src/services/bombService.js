@@ -1,10 +1,12 @@
 const User = require('../models/User');
+const MarketItem = require('../models/MarketItem');
 const ticketService = require('./ticketService');
 const TicketTransaction = require('../models/TicketTransaction');
 const bombAttackService = require('./bombAttackService');
+const protectionService = require('./protectionService');
 
 /**
- * Get user's current bomb count
+ * Get user's current bomb count (includes both regular and market bombs)
  */
 async function getBombCount(userId) {
   try {
@@ -12,7 +14,15 @@ async function getBombCount(userId) {
     if (!user) {
       throw new Error('User not found');
     }
-    return user.bombs || 0;
+    const regularBombs = user.bombs || 0;
+    
+    // Also check for market bombs
+    const marketBomb = await MarketItem.findOne({
+      where: { userId, emoji: '💣' }
+    });
+    const marketBombs = marketBomb ? marketBomb.quantity : 0;
+    
+    return regularBombs + marketBombs;
   } catch (error) {
     console.error('Error getting bomb count:', error);
     throw error;
@@ -45,6 +55,7 @@ async function awardBomb(userId, amount, awardedBy, reason) {
 
 /**
  * Use a bomb on a target user (eliminates up to 5 tickets)
+ * Checks both regular bombs (User.bombs) and market bombs (MarketItem)
  */
 async function useBomb(userId, targetUserId, reason, chatId) {
   try {
@@ -53,13 +64,29 @@ async function useBomb(userId, targetUserId, reason, chatId) {
       throw new Error('User not found');
     }
 
-    if ((user.bombs || 0) < 1) {
-      throw new Error('You don\'t have any bombs!');
-    }
-
     const targetUser = await User.findByPk(targetUserId);
     if (!targetUser) {
       throw new Error('Target user not found');
+    }
+
+    // Check if target is protected
+    const isTargetProtected = await protectionService.isProtected(targetUserId);
+    if (isTargetProtected) {
+      throw new Error(`${targetUser.name} is protected by a cloak of protection and cannot be attacked!`);
+    }
+
+    // Check for regular bombs first
+    const regularBombs = user.bombs || 0;
+    // Check for market bombs
+    const marketBomb = await MarketItem.findOne({
+      where: { userId, emoji: '💣' }
+    });
+    const marketBombs = marketBomb ? marketBomb.quantity : 0;
+
+    const totalBombs = regularBombs + marketBombs;
+
+    if (totalBombs < 1) {
+      throw new Error('You don\'t have any bombs!');
     }
 
     // Get target's current ticket balance
@@ -89,15 +116,29 @@ async function useBomb(userId, targetUserId, reason, chatId) {
       chatId || null
     );
 
-    // Remove one bomb from user
-    user.bombs = (user.bombs || 0) - 1;
-    await user.save();
+    // Use a bomb - prefer market bombs first, then regular bombs
+    let remainingBombs = regularBombs;
+    if (marketBombs > 0) {
+      // Use market bomb
+      marketBomb.quantity -= 1;
+      if (marketBomb.quantity <= 0) {
+        await marketBomb.destroy();
+      } else {
+        await marketBomb.save();
+      }
+      remainingBombs = regularBombs + (marketBomb.quantity || 0);
+    } else {
+      // Use regular bomb
+      user.bombs = regularBombs - 1;
+      await user.save();
+      remainingBombs = user.bombs;
+    }
 
     return {
       blocked: false,
       ticketsEliminated: ticketsToEliminate,
       targetBalance: targetBalance - ticketsToEliminate,
-      remainingBombs: user.bombs,
+      remainingBombs: remainingBombs,
       shieldUsed: false
     };
   } catch (error) {

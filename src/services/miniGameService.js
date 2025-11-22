@@ -2,6 +2,7 @@ const { sendMessage } = require('../bot/telegramBot');
 const ticketService = require('./ticketService');
 const roleService = require('../services/roleService');
 const bombService = require('./bombService');
+const claudeService = require('./claudeService');
 
 // Store active games
 const activeGames = new Map(); // chatId -> { type, question, answer, messageId, startTime, questionNumber, totalQuestions, category, timer, guessedUsers }
@@ -11,64 +12,55 @@ const activeGames = new Map(); // chatId -> { type, question, answer, messageId,
  */
 async function startTriviaGame(chatId, category = null) {
   try {
-    const questionSets = {
+    // Fallback question sets if Claude is unavailable
+    const fallbackQuestionSets = {
       popculture: [
         { question: "Which movie won the Academy Award for Best Picture in 2020?", answer: "parasite" },
         { question: "Who sang the hit song 'Blinding Lights'?", answer: "the weeknd" },
-        { question: "What streaming service is 'Stranger Things' on?", answer: "netflix" },
-        { question: "Which rapper released the album 'DAMN.'?", answer: "kendrick lamar" },
-        { question: "What is the name of the main character in 'Breaking Bad'?", answer: "walter white" },
-        { question: "Which Marvel movie was the first to gross over $2 billion worldwide?", answer: "avengers endgame" },
-        { question: "Who played the Joker in 'The Dark Knight'?", answer: "heath ledger" },
-        { question: "What year did TikTok launch globally?", answer: "2018" },
-        { question: "Which TV show features the character Eleven?", answer: "stranger things" },
-        { question: "What is the highest-grossing film of all time?", answer: "avatar" }
+        { question: "What streaming service is 'Stranger Things' on?", answer: "netflix" }
       ],
       sports: [
         { question: "Which team won the Super Bowl in 2024?", answer: "kansas city chiefs" },
         { question: "How many players are on a basketball court at once for one team?", answer: "5" },
-        { question: "What sport is played at Wimbledon?", answer: "tennis" },
-        { question: "Which country won the FIFA World Cup in 2022?", answer: "argentina" },
-        { question: "What is the maximum score in a single frame of bowling?", answer: "300" },
-        { question: "Which NBA player is known as 'King James'?", answer: "lebron james" },
-        { question: "How many innings are in a standard baseball game?", answer: "9" },
-        { question: "What is the name of the trophy awarded to the winner of the Stanley Cup?", answer: "stanley cup" },
-        { question: "Which sport uses a shuttlecock?", answer: "badminton" },
-        { question: "How many players are on a soccer team on the field at once?", answer: "11" }
+        { question: "What sport is played at Wimbledon?", answer: "tennis" }
       ],
       tech: [
         { question: "What does CPU stand for?", answer: "central processing unit" },
         { question: "Which company created the iPhone?", answer: "apple" },
-        { question: "What programming language is known for its use in web development and was created by Brendan Eich?", answer: "javascript" },
-        { question: "What does HTML stand for?", answer: "hypertext markup language" },
-        { question: "Which social media platform was originally called 'TheFacebook'?", answer: "facebook" },
-        { question: "What is the name of Google's mobile operating system?", answer: "android" },
-        { question: "What does API stand for?", answer: "application programming interface" },
-        { question: "Which company owns GitHub?", answer: "microsoft" },
-        { question: "What is the name of Amazon's cloud computing platform?", answer: "aws" },
-        { question: "What does VPN stand for?", answer: "virtual private network" }
+        { question: "What programming language is known for its use in web development?", answer: "javascript" }
       ]
     };
     
     // If no category provided, return available categories
     if (!category) {
-      return { categories: Object.keys(questionSets) };
+      return { categories: Object.keys(fallbackQuestionSets) };
     }
     
     const categoryLower = category.toLowerCase();
-    const questions = questionSets[categoryLower];
     
-    if (!questions) {
-      throw new Error(`Invalid category. Available: ${Object.keys(questionSets).join(', ')}`);
+    if (!fallbackQuestionSets[categoryLower]) {
+      throw new Error(`Invalid category. Available: ${Object.keys(fallbackQuestionSets).join(', ')}`);
     }
     
     // Start with question 1
     const questionNumber = 1;
     const totalQuestions = 5;
     const reward = 1; // 1 ticket per correct answer
+    const timeoutSeconds = 120; // 120 seconds to answer
     
-    // Get random question
-    const trivia = questions[Math.floor(Math.random() * questions.length)];
+    // Try to generate question using Claude
+    let trivia = null;
+    if (claudeService.isAvailable()) {
+      console.log(`Generating trivia question for category: ${categoryLower}`);
+      trivia = await claudeService.generateTriviaQuestion(categoryLower);
+    }
+    
+    // Fallback to hardcoded questions if Claude fails
+    if (!trivia) {
+      console.log('Claude unavailable or failed, using fallback questions');
+      const questions = fallbackQuestionSets[categoryLower];
+      trivia = questions[Math.floor(Math.random() * questions.length)];
+    }
     
     const categoryDisplay = {
       popculture: 'Pop Culture',
@@ -79,7 +71,7 @@ async function startTriviaGame(chatId, category = null) {
     const message = await sendMessage(chatId,
       `🎮 **Trivia Game - ${categoryDisplay[categoryLower]}** 🎮\n\n` +
       `**Question ${questionNumber}/${totalQuestions}:**\n${trivia.question}\n\n` +
-      `⏰ 15 seconds to answer!\n` +
+      `⏰ ${timeoutSeconds} seconds to answer!\n` +
       `🎫 Correct answer = ${reward} ticket\n\n` +
       `Reply to this message with your answer!`
     );
@@ -93,7 +85,7 @@ async function startTriviaGame(chatId, category = null) {
       category: categoryLower,
       questionNumber: questionNumber,
       totalQuestions: totalQuestions,
-      questions: questions, // Store all questions for this category
+      timeoutSeconds: timeoutSeconds,
       usedQuestions: [trivia.question], // Track used questions
       startTime: new Date(),
       timer: null
@@ -101,14 +93,14 @@ async function startTriviaGame(chatId, category = null) {
     
     activeGames.set(chatId.toString(), gameData);
     
-    // Auto-advance after 15 seconds
+    // Auto-advance after timeoutSeconds
     gameData.timer = setTimeout(async () => {
       const currentGame = activeGames.get(chatId.toString());
       if (currentGame && currentGame.type === 'trivia' && currentGame.messageId === message.message_id) {
         // Time's up - move to next question or end game
         await advanceToNextQuestion(chatId, currentGame);
       }
-    }, 15 * 1000); // 15 seconds
+    }, timeoutSeconds * 1000);
     
     return message;
   } catch (error) {
@@ -149,17 +141,6 @@ async function advanceToNextQuestion(chatId, game, answeredCorrectly = false) {
       return;
     }
     
-    // Get next question (avoid duplicates)
-    let availableQuestions = game.questions.filter(q => !game.usedQuestions.includes(q.question));
-    if (availableQuestions.length === 0) {
-      // All questions used, reset
-      availableQuestions = game.questions;
-      game.usedQuestions = [];
-    }
-    
-    const nextTrivia = availableQuestions[Math.floor(Math.random() * availableQuestions.length)];
-    game.usedQuestions.push(nextTrivia.question);
-    
     const nextQuestionNumber = game.questionNumber + 1;
     const categoryDisplay = {
       popculture: 'Pop Culture',
@@ -167,11 +148,51 @@ async function advanceToNextQuestion(chatId, game, answeredCorrectly = false) {
       tech: 'Technology'
     };
     
+    // Try to generate next question using Claude
+    let nextTrivia = null;
+    if (claudeService.isAvailable()) {
+      console.log(`Generating next trivia question for category: ${game.category}`);
+      nextTrivia = await claudeService.generateTriviaQuestion(game.category);
+    }
+    
+    // Fallback to hardcoded questions if Claude fails
+    if (!nextTrivia) {
+      console.log('Claude unavailable or failed, using fallback questions');
+      const fallbackQuestionSets = {
+        popculture: [
+          { question: "Which movie won the Academy Award for Best Picture in 2020?", answer: "parasite" },
+          { question: "Who sang the hit song 'Blinding Lights'?", answer: "the weeknd" },
+          { question: "What streaming service is 'Stranger Things' on?", answer: "netflix" }
+        ],
+        sports: [
+          { question: "Which team won the Super Bowl in 2024?", answer: "kansas city chiefs" },
+          { question: "How many players are on a basketball court at once for one team?", answer: "5" },
+          { question: "What sport is played at Wimbledon?", answer: "tennis" }
+        ],
+        tech: [
+          { question: "What does CPU stand for?", answer: "central processing unit" },
+          { question: "Which company created the iPhone?", answer: "apple" },
+          { question: "What programming language is known for its use in web development?", answer: "javascript" }
+        ]
+      };
+      
+      const questions = fallbackQuestionSets[game.category] || [];
+      let availableQuestions = questions.filter(q => !game.usedQuestions.includes(q.question));
+      if (availableQuestions.length === 0) {
+        availableQuestions = questions;
+        game.usedQuestions = [];
+      }
+      nextTrivia = availableQuestions[Math.floor(Math.random() * availableQuestions.length)];
+    }
+    
+    game.usedQuestions.push(nextTrivia.question);
+    const timeoutSeconds = game.timeoutSeconds || 120;
+    
     // Send next question
     const nextMessage = await sendMessage(chatId,
       `🎮 **Trivia Game - ${categoryDisplay[game.category]}** 🎮\n\n` +
       `**Question ${nextQuestionNumber}/${game.totalQuestions}:**\n${nextTrivia.question}\n\n` +
-      `⏰ 15 seconds to answer!\n` +
+      `⏰ ${timeoutSeconds} seconds to answer!\n` +
       `🎫 Correct answer = ${game.reward} ticket\n\n` +
       `Reply to this message with your answer!`
     );
@@ -189,7 +210,7 @@ async function advanceToNextQuestion(chatId, game, answeredCorrectly = false) {
       if (currentGame && currentGame.type === 'trivia' && currentGame.messageId === nextMessage.message_id) {
         await advanceToNextQuestion(chatId, currentGame);
       }
-    }, 15 * 1000); // 15 seconds
+    }, timeoutSeconds * 1000);
     
     activeGames.set(chatId.toString(), game);
   } catch (error) {

@@ -137,9 +137,11 @@ async function setRole(command, args, context) {
     const roleEmoji = {
       king: '👑',
       queen: '👑',
+      master: '⚔️',
       enforcer: '⚖️',
       lawyer: '⚖️',
       guard: '🛡️',
+      prosecutor: '⚖️',
       peasant: '👤'
     };
     

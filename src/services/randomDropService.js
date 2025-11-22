@@ -149,31 +149,59 @@ async function handleBountyAnswer(chatId, userId, username, answer) {
       return false; // Already won
     }
     
-    const answerLower = answer.toLowerCase().trim();
+    const answerLower = answer.toLowerCase().trim().replace(/[^\w\s]/g, '');
+    const riddleAnswerLower = drop.riddleAnswer.toLowerCase().trim().replace(/[^\w\s]/g, '');
     
-    if (answerLower === drop.riddleAnswer) {
+    if (answerLower === riddleAnswerLower) {
       // Correct answer!
       drop.winners.push(userId.toString());
       
-      const user = await roleService.getUserByMessengerId(userId.toString());
-      if (user) {
-        await ticketService.awardTickets(user.id, drop.reward, user.id, 'Bounty reward');
-        
-        await sendMessage(chatId,
-          `🎉 **${username} solved the bounty!** 🎉\n\n` +
-          `Correct answer: "${drop.riddleAnswer}"\n` +
-          `Reward: ${drop.reward} tickets!`
+      // Get or create user
+      let user = await roleService.getUserByMessengerId(userId.toString());
+      if (!user) {
+        // User not found, create them
+        user = await roleService.createOrUpdateUser(
+          userId.toString(),
+          username,
+          chatId.toString()
         );
-        
-        activeDrops.delete(chatId.toString());
       }
       
-      return true;
+      if (user) {
+        try {
+          await ticketService.awardTickets(user.id, drop.reward, user.id, 'Bounty reward');
+          const newBalance = await ticketService.getBalance(user.id);
+          
+          await sendMessage(chatId,
+            `🎉 **${username} solved the bounty!** 🎉\n\n` +
+            `✅ Correct answer: "${drop.riddleAnswer}"\n` +
+            `🎫 Reward: +${drop.reward} tickets!\n` +
+            `💰 ${username}'s balance: ${newBalance} tickets`
+          );
+          
+          activeDrops.delete(chatId.toString());
+          return true;
+        } catch (ticketError) {
+          console.error('Error awarding tickets for bounty:', ticketError);
+          await sendMessage(chatId,
+            `🎉 **${username} solved the bounty!** 🎉\n\n` +
+            `✅ Correct answer: "${drop.riddleAnswer}"\n` +
+            `⚠️ Error awarding tickets: ${ticketError.message}\n` +
+            `Please contact an admin to manually award ${drop.reward} tickets.`
+          );
+          activeDrops.delete(chatId.toString());
+          return true;
+        }
+      } else {
+        console.error(`Could not find or create user for ${username} (${userId})`);
+        return false;
+      }
     }
     
     return false; // Wrong answer
   } catch (error) {
     console.error('Error handling bounty answer:', error);
+    console.error('Error stack:', error.stack);
     return false;
   }
 }

@@ -106,8 +106,18 @@ function generateDramaticSummary(grouped, hours) {
 async function recap(args, context) {
   const { user, chatId, message } = context;
   
-  // Block rainbeau1 from using recap command
-  if (user.name.toLowerCase() === 'rainbeau1') {
+  // Block rainbeau1/caro from using recap command (check name and nickname)
+  const blockedNames = ['rainbeau1', 'caro', 'peasant caro'];
+  const userName = (user.name || '').toLowerCase();
+  const userNickname = (user.nickname || '').toLowerCase();
+  const isBlocked = blockedNames.some(blocked => 
+    userName === blocked || 
+    userName.includes(blocked) ||
+    userNickname === blocked ||
+    userNickname.includes(blocked)
+  );
+  
+  if (isBlocked) {
     return "❌ You do not have permission to use this command.";
   }
   
@@ -279,8 +289,18 @@ async function recap(args, context) {
 async function personalRecap(context) {
   const { user, chatId } = context;
   
-  // Block rainbeau1 from using recap command
-  if (user.name.toLowerCase() === 'rainbeau1') {
+  // Block rainbeau1/caro from using recap command (check name and nickname)
+  const blockedNames = ['rainbeau1', 'caro', 'peasant caro'];
+  const userName = (user.name || '').toLowerCase();
+  const userNickname = (user.nickname || '').toLowerCase();
+  const isBlocked = blockedNames.some(blocked => 
+    userName === blocked || 
+    userName.includes(blocked) ||
+    userNickname === blocked ||
+    userNickname.includes(blocked)
+  );
+  
+  if (isBlocked) {
     return "❌ You do not have permission to use this command.";
   }
   

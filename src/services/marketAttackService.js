@@ -1,20 +1,21 @@
 /**
- * Service to track recent bomb attacks for shield blocking
+ * Service to track recent market attacks (dynamite/bomb) for shield blocking
  */
 
-// In-memory storage for recent bomb attacks
-// Structure: Map<targetUserId, { attackerId, targetUserId, ticketsLost, timestamp, reason, chatId }>
+// In-memory storage for recent market attacks
+// Structure: Map<targetUserId, { attackerId, targetUserId, attackType, ticketsLost, timestamp, reason, chatId }>
 const recentAttacks = new Map();
 
 const BLOCK_WINDOW_MS = 120000; // 2 minutes
 
 /**
- * Record a bomb attack
+ * Record a market attack (dynamite or bomb)
  */
-function recordAttack(targetUserId, attackerId, ticketsLost, reason, chatId) {
+function recordAttack(targetUserId, attackerId, attackType, ticketsLost, reason, chatId) {
   const attack = {
     attackerId,
     targetUserId,
+    attackType, // 'dynamite' or 'bomb'
     ticketsLost,
     timestamp: Date.now(),
     reason: reason || 'No reason provided',
@@ -94,6 +95,5 @@ module.exports = {
   cleanupExpired,
   BLOCK_WINDOW_MS
 };
-
 
 

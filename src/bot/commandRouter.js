@@ -10,6 +10,9 @@ const shieldCommands = require('../commands/shields');
 const assassinationCommands = require('../commands/assassination');
 const triviaCommands = require('../commands/trivia');
 const guessCommands = require('../commands/guess');
+const marketCommands = require('../commands/market');
+const protectionCommands = require('../commands/protection');
+const masterCommands = require('../commands/master');
 
 /**
  * Route parsed message to appropriate command handler
@@ -51,6 +54,8 @@ async function handlePrefixCommand(command, args, context) {
   switch (command) {
     // Admin commands
     case 'setking':
+    case 'setqueen':
+    case 'setmaster':
     case 'setenforcer':
     case 'setguard':
     case 'setpeasant':
@@ -165,6 +170,11 @@ async function handlePrefixCommand(command, args, context) {
     case 'emojis':
       return await infoCommands.icons();
     
+    case 'new':
+    case 'newcommands':
+    case 'latest':
+      return await infoCommands.newCommands();
+    
     case 'myrole':
       return await infoCommands.myRole(context);
     
@@ -198,6 +208,44 @@ async function handlePrefixCommand(command, args, context) {
         return await nicknameCommands.showNickname(context);
       }
       return await nicknameCommands.setNickname(args, context);
+    
+    // Market commands
+    case 'market':
+    case 'shop':
+    case 'store':
+      return await marketCommands.showMarket(context);
+    
+    case 'inventory':
+    case 'inv':
+      return await marketCommands.showInventory(context);
+    
+    case 'usediscoball':
+      return await marketCommands.useDiscoBall(args, context);
+    
+    case 'usedynamite':
+      return await marketCommands.useDynamite(args, context);
+    
+    case 'usemarketbomb':
+      return await marketCommands.useMarketBomb(args, context);
+    
+    case 'blockmarketattack':
+    case 'blockmarket':
+      return await marketCommands.blockMarketAttack(args, context);
+    
+    // Protection commands
+    case 'cloakofprotection':
+    case 'protect':
+      return await protectionCommands.cloakOfProtection(args, context);
+    
+    case 'checkprotection':
+    case 'protection':
+      return await protectionCommands.checkProtection(args, context);
+    
+    // Master of the Iron Code
+    case 'master':
+    case 'ironcode':
+    case 'gary':
+      return await masterCommands.masterStatus(context);
     
     default:
       return `Unknown command: /${command}. Type /help for a list of commands.`;

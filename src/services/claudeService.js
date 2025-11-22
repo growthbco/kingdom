@@ -118,8 +118,117 @@ Recap:`;
   }
 }
 
+/**
+ * Generate a trivia question using Claude
+ */
+async function generateTriviaQuestion(category) {
+  if (!anthropic) {
+    return null; // Claude not configured
+  }
+
+  try {
+    const categoryDescriptions = {
+      popculture: 'Pop Culture (movies, music, TV shows, celebrities, entertainment)',
+      sports: 'Sports (all sports, athletes, teams, championships, records)',
+      tech: 'Technology (programming, computers, software, tech companies, internet)'
+    };
+
+    const categoryDescription = categoryDescriptions[category] || category;
+
+    const prompt = `Generate a fun, engaging trivia question in the category: ${categoryDescription}
+
+Requirements:
+- The question should be interesting and not too easy or too hard
+- The answer should be a single word or short phrase (1-3 words)
+- Make it specific and factual
+- Avoid questions that have multiple correct answers
+- Make it engaging and fun
+
+Return your response in this exact format:
+QUESTION: [the question here]
+ANSWER: [the answer here, lowercase, no punctuation]
+
+Example:
+QUESTION: Which movie won the Academy Award for Best Picture in 2020?
+ANSWER: parasite
+
+Now generate a NEW question in the ${categoryDescription} category. Make it different from common trivia questions - be creative!`;
+
+    const systemPrompt = `You're a trivia question generator. Generate engaging, fun trivia questions with clear, single-word or short-phrase answers. Always respond in the exact format: QUESTION: [question] ANSWER: [answer]`;
+
+    // Try different model names
+    const modelsToTry = [
+      'claude-3-5-sonnet-20241022', // Claude 3.5 Sonnet (best for this)
+      'claude-3-opus-20240229',  // Claude 3 Opus
+      'claude-3-sonnet-20240229', // Claude 3 Sonnet
+      'claude-3-haiku-20240307'  // Claude 3 Haiku (fallback)
+    ];
+    
+    let response = null;
+    let lastError = null;
+    
+    for (const model of modelsToTry) {
+      try {
+        console.log(`Claude: Generating trivia question using model ${model}`);
+        response = await anthropic.messages.create({
+          model: model,
+          max_tokens: 200,
+          temperature: 0.9,
+          system: systemPrompt,
+          messages: [
+            {
+              role: 'user',
+              content: prompt
+            }
+          ]
+        });
+        console.log(`Claude: Successfully generated trivia question using model ${model}`);
+        break; // Success, exit loop
+      } catch (error) {
+        console.log(`Claude: Model ${model} failed: ${error.message}`);
+        lastError = error;
+        continue; // Try next model
+      }
+    }
+    
+    if (!response) {
+      throw lastError || new Error('All Claude models failed');
+    }
+
+    const text = response.content[0].text.trim();
+    
+    // Parse the response
+    const questionMatch = text.match(/QUESTION:\s*(.+?)(?=\n|ANSWER:|$)/i);
+    const answerMatch = text.match(/ANSWER:\s*(.+?)(?=\n|$)/i);
+    
+    if (questionMatch && answerMatch) {
+      const question = questionMatch[1].trim();
+      const answer = answerMatch[1].trim().toLowerCase().replace(/[^\w\s]/g, '');
+      console.log(`Claude: Generated trivia - Q: ${question.substring(0, 50)}... A: ${answer}`);
+      return { question, answer };
+    }
+    
+    // Fallback parsing if format doesn't match exactly
+    const lines = text.split('\n').filter(l => l.trim());
+    if (lines.length >= 2) {
+      const question = lines[0].replace(/^QUESTION:\s*/i, '').trim();
+      const answer = lines[1].replace(/^ANSWER:\s*/i, '').trim().toLowerCase().replace(/[^\w\s]/g, '');
+      if (question && answer) {
+        console.log(`Claude: Generated trivia (fallback parsing) - Q: ${question.substring(0, 50)}... A: ${answer}`);
+        return { question, answer };
+      }
+    }
+    
+    throw new Error('Could not parse trivia question from Claude response');
+  } catch (error) {
+    console.error('Error generating trivia question with Claude:', error.message);
+    return null;
+  }
+}
+
 module.exports = {
   summarizeChat,
+  generateTriviaQuestion,
   isAvailable: () => anthropic !== null
 };
 

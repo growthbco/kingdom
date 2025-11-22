@@ -3,6 +3,7 @@ const roleService = require('../services/roleService');
 const activityService = require('../services/activityService');
 const assassinationService = require('../services/assassinationService');
 const shieldService = require('../services/shieldService');
+const protectionService = require('../services/protectionService');
 const { sendMessage } = require('../bot/telegramBot');
 const User = require('../models/User');
 
@@ -51,6 +52,12 @@ async function assassinate(args, context) {
     
     // Use first monarch found (or could randomize)
     const victim = monarchs[0];
+    
+    // Check if target is protected
+    const isTargetProtected = await protectionService.isProtected(victim.id);
+    if (isTargetProtected) {
+      return `❌ ${victim.name} is protected by a cloak of protection and cannot be attacked!`;
+    }
     
     // Check for guards
     const guards = await User.findAll({
@@ -243,6 +250,12 @@ async function assassinatePowerUser(args, context, actionId = null) {
     // Can't assassinate yourself
     if (targetUser.id === user.id) {
       return "❌ You cannot assassinate yourself!";
+    }
+    
+    // Check if target is protected
+    const isTargetProtected = await protectionService.isProtected(targetUser.id);
+    if (isTargetProtected) {
+      return `❌ ${targetUser.name} is protected by a cloak of protection and cannot be attacked!`;
     }
     
     // Can't assassinate peasants or monarchs with this action

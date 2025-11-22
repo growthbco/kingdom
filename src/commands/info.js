@@ -6,6 +6,7 @@ const Group = require('../models/Group');
 const ticketService = require('../services/ticketService');
 const bombService = require('../services/bombService');
 const shieldService = require('../services/shieldService');
+const marketService = require('../services/marketService');
 const roleService = require('../services/roleService');
 const userService = require('../services/userService');
 const { createChatInviteLink } = require('../bot/telegramBot');
@@ -18,6 +19,7 @@ async function status(context) {
   try {
     const king = await User.findOne({ where: { role: 'king' } });
     const queen = await User.findOne({ where: { role: 'queen' } });
+    const master = await User.findOne({ where: { role: 'master' } });
     const enforcer = await User.findOne({ where: { role: 'enforcer' } });
     const lawyers = await User.findAll({ where: { role: 'lawyer' } });
     const guards = await User.findAll({ where: { role: 'guard' } });
@@ -29,15 +31,22 @@ async function status(context) {
     let message = "👑 **Kingdom Status**\n\n";
     
     if (king) {
-      message += `👑 King: ${king.name}\n`;
+      const kingDisplayName = userService.getDisplayName(king);
+      message += `👑 King: ${kingDisplayName}\n`;
     } else {
       message += `👑 King: *None*\n`;
     }
     
     if (queen) {
-      message += `👑 Queen: ${queen.name}\n`;
+      const queenDisplayName = userService.getDisplayName(queen);
+      message += `👑 Queen: ${queenDisplayName}\n`;
     } else {
       message += `👑 Queen: *None*\n`;
+    }
+    
+    if (master) {
+      const masterDisplayName = userService.getDisplayName(master);
+      message += `⚔️ Master of The Iron Code: ${masterDisplayName}\n`;
     }
     
     if (enforcer) {
@@ -88,6 +97,7 @@ async function roles(context) {
     const roleGroups = {
       king: [],
       queen: [],
+      master: [],
       enforcer: [],
       lawyer: [],
       guard: [],
@@ -95,7 +105,14 @@ async function roles(context) {
       peasant: []
     };
     
-    users.forEach(user => {
+    // Filter out excluded users (NicoHIMos)
+    const excludedNames = ['nicohimos'];
+    const filteredUsers = users.filter(user => {
+      const userName = user.name.toLowerCase();
+      return !excludedNames.some(excluded => userName.includes(excluded));
+    });
+    
+    filteredUsers.forEach(user => {
       if (roleGroups[user.role]) {
         roleGroups[user.role].push(user);
       }
@@ -106,6 +123,7 @@ async function roles(context) {
     const roleEmojis = {
       king: '👑',
       queen: '👑',
+      master: '⚔️',
       enforcer: '⚖️',
       lawyer: '⚖️',
       guard: '🛡️',
@@ -116,6 +134,7 @@ async function roles(context) {
     const roleNames = {
       king: 'King',
       queen: 'Queen',
+      master: 'Master of The Iron Code',
       enforcer: 'Enforcer',
       lawyer: 'Lawyers',
       guard: 'Guards',
@@ -124,7 +143,7 @@ async function roles(context) {
     };
     
     // Show roles in order of importance
-    const roleOrder = ['king', 'queen', 'enforcer', 'lawyer', 'guard', 'prosecutor', 'peasant'];
+    const roleOrder = ['king', 'queen', 'master', 'enforcer', 'lawyer', 'guard', 'prosecutor', 'peasant'];
     
     roleOrder.forEach(role => {
       const roleUsers = roleGroups[role];
@@ -135,11 +154,7 @@ async function roles(context) {
         
         roleUsers.forEach(user => {
           const displayName = userService.getDisplayName(user);
-          let userLine = `   • ${displayName}`;
-          if (user.isInPrison) {
-            userLine += ` 🔒`;
-          }
-          message += userLine + '\n';
+          message += `   • ${displayName}\n`;
         });
         message += '\n';
       }
@@ -166,7 +181,7 @@ async function leaderboard(context) {
     }
     
     // Filter out excluded users (by name or nickname)
-    const excludedNames = ['king g', 'kingofthechat_bot', 'kingofthechat'];
+    const excludedNames = ['king g', 'kingofthechat_bot', 'kingofthechat', 'nicohimos'];
     const filteredUsers = users.filter(user => {
       const displayName = userService.getDisplayName(user).toLowerCase();
       const userName = user.name.toLowerCase();
@@ -186,12 +201,14 @@ async function leaderboard(context) {
         const bombCount = await bombService.getBombCount(user.id);
         const shieldCount = await shieldService.getShieldCount(user.id);
         const killShieldCount = await shieldService.getKillShieldCount(user.id);
+        const marketItems = await marketService.getUserInventory(user.id);
         return {
           user,
           tickets: ticketBalance,
           bombs: bombCount,
           shields: shieldCount,
-          killShields: killShieldCount
+          killShields: killShieldCount,
+          marketItems: marketItems
         };
       })
     );
@@ -215,6 +232,18 @@ async function leaderboard(context) {
       if (item.bombs > 0) parts.push(`${item.bombs} 💣`);
       if (item.shields > 0) parts.push(`${item.shields} 🛡️`);
       if (item.killShields > 0) parts.push(`${item.killShields} ⚔️`);
+      
+      // Add market items
+      if (item.marketItems && item.marketItems.length > 0) {
+        const marketParts = item.marketItems.map(marketItem => {
+          if (marketItem.quantity > 1) {
+            return `${marketItem.emoji} x${marketItem.quantity}`;
+          }
+          return marketItem.emoji;
+        });
+        parts.push(...marketParts);
+      }
+      
       message += `${idx + 1}. ${parts.join(' and ')}\n`;
     });
     
@@ -257,6 +286,28 @@ async function actions(context) {
 /**
  * Show icon reference
  */
+/**
+ * Show simplified list of newest commands
+ */
+function newCommands() {
+  return `🆕 <b>NEWEST COMMANDS</b> 🆕\n\n` +
+    `**🛒 Market Commands:**\n` +
+    `/market - Open interactive market\n` +
+    `/inventory - View your items\n` +
+    `/usediscoball @user - Swap all inventory\n` +
+    `/usedynamite @user - Wipe ALL tickets\n` +
+    `/usemarketbomb @user - Wipe 10 tickets\n` +
+    `/blockmarketattack [@user] - Block attack\n\n` +
+    `**🛡️ Protection Commands:**\n` +
+    `/cloakofprotection @user - Protect user (24h, admin only)\n` +
+    `/checkprotection [@user] - Check protection status\n\n` +
+    `**💣 Market Items:**\n` +
+    `🪩 Disco Ball (40🎫) - Swap inventory\n` +
+    `🧨 Dynamite (20🎫) - Wipe all tickets\n` +
+    `💣 Market Bomb (5🎫) - Wipe 10 tickets\n` +
+    `🛡️ Market Shield (30🎫) - Block attacks`;
+}
+
 function icons() {
   return `📋 **Icon Reference**\n\n` +
     `**Currency & Items:**\n` +
@@ -282,8 +333,10 @@ function icons() {
 function help() {
   return `📖 **Kingdom Bot Commands**\n\n` +
     `**👑 Admin** (Enforcer & King/Queen only):\n` +
-    `/setrole <role> @user - Set user role (roles: king, enforcer, guard, lawyer, prosecutor, peasant)\n` +
+    `/setrole <role> @user - Set user role (roles: king, queen, master, enforcer, guard, lawyer, prosecutor, peasant)\n` +
     `/setking user - Set King (shortcut)\n` +
+    `/setqueen user - Set Queen (shortcut)\n` +
+    `/setmaster user - Set Master of The Iron Code (shortcut)\n` +
     `/setenforcer user - Set Enforcer (shortcut)\n` +
     `/setguard user - Set Guard (shortcut)\n` +
     `/setpeasant user - Set Peasant (shortcut)\n` +
@@ -296,13 +349,22 @@ function help() {
     `/jail user <reason> - Send to jail (admin only, user loses 10 tickets)\n` +
     `/remove user - Remove user from chat (admin only)\n` +
     `/add user - Add user back to chat\n` +
-    `/invite - Create temporary invite link for Kingdom Reborn (1 hour, admin only)\n\n` +
+    `/invite - Create temporary invite link for Kingdom Reborn (1 hour, admin only)\n` +
+    `/cloakofprotection @user - Protect a user from all attacks for 24 hours (admin only)\n` +
+    `/checkprotection [@user] - Check protection status for a user\n\n` +
     `**🎫 Tickets:**\n` +
     `/balance - Your balance\n` +
     `/history [user] - Transaction history\n` +
     `/redeem <action> - Redeem tickets\n` +
     `/spend <amount> <reason> - Spend tickets\n` +
     `/give user <amount> - Gift tickets to another user (max 10/day)\n\n` +
+    `**🛒 Market:**\n` +
+    `/market - Open the interactive market to buy items\n` +
+    `/inventory - View your inventory\n` +
+    `/usediscoball @user - Swap all inventory items with another user (requires disco ball)\n` +
+    `/usedynamite @user - Wipe ALL tickets from a user (requires dynamite, costs 20 tickets)\n` +
+    `/usemarketbomb @user - Wipe 10 tickets from a user (requires market bomb, costs 5 tickets)\n` +
+    `/blockmarketattack [@user] - Block a dynamite or market bomb attack (requires market shield, costs 30 tickets)\n\n` +
     `**⚔️ Kill/Murder:**\n` +
     `/assassinate - Kill the King/Queen (costs 100 tickets, guards have 90s to block)\n` +
     `/block - Block a King/Queen kill attempt (Guards only, rewards 25 tickets)\n` +
@@ -601,6 +663,7 @@ module.exports = {
   roles,
   daysAsKing,
   timesInJail,
-  createInviteLink
+  createInviteLink,
+  newCommands
 };
 
