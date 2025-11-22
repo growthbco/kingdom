@@ -4,7 +4,7 @@ require('dotenv').config();
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
 if (!BOT_TOKEN) {
-  throw new Error('TELEGRAM_BOT_TOKEN is required in .env file');
+  throw new Error('TELEGRAM_BOT_TOKEN environment variable is required. Please set it in Railway Variables or your .env file.');
 }
 
 // Create bot instance
