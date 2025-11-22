@@ -4,6 +4,13 @@ require('dotenv').config();
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
 if (!BOT_TOKEN) {
+  // Log available environment variables for debugging (but don't expose sensitive values)
+  const envKeys = Object.keys(process.env).filter(key => 
+    key.includes('TELEGRAM') || key.includes('BOT') || key.includes('TOKEN')
+  );
+  console.error('Available environment variables:', envKeys);
+  console.error('NODE_ENV:', process.env.NODE_ENV);
+  console.error('All env keys count:', Object.keys(process.env).length);
   throw new Error('TELEGRAM_BOT_TOKEN environment variable is required. Please set it in Railway Variables or your .env file.');
 }
 
